@@ -295,9 +295,89 @@ async function renderDiagrams() {
         (err && err.message ? err.message : String(err)) + "</div>";
     }
   }
-  for (const node of content.querySelectorAll(".diagram-plantuml")) {
+  await renderPlantumlDiagrams();
+}
+
+let plantumlCache = new Map(); // source -> { svg, width, height }
+let plantumlCachePath = null;
+
+function snapshotPlantumlLayout() {
+  return [...content.querySelectorAll(".diagram-plantuml")].map((node) => {
     const source = node.querySelector(".diagram-source")?.textContent ?? "";
-    if (!source.trim()) continue;
+    const svg = node.querySelector("svg");
+    const target = svg || node.querySelector(".diagram-skeleton") || node;
+    const rect = target.getBoundingClientRect();
+    return {
+      source,
+      width: Math.max(0, Math.round(rect.width)),
+      height: Math.max(0, Math.round(rect.height)),
+      svg: svg ? svg.outerHTML : (plantumlCache.get(source)?.svg ?? ""),
+    };
+  });
+}
+
+function plantumlSourceHtml(node) {
+  return node.querySelector(".diagram-source")?.outerHTML ?? "";
+}
+
+function setPlantumlSkeleton(node, width, height) {
+  const sourceHtml = plantumlSourceHtml(node);
+  const w = width > 0 ? `${width}px` : "100%";
+  const h = height > 0 ? `${height}px` : "8rem";
+  node.innerHTML = sourceHtml +
+    `<div class="diagram-skeleton" style="width:${w};max-width:100%;height:${h};min-height:${h}" aria-hidden="true"></div>`;
+}
+
+function setPlantumlSvg(node, svg) {
+  const sourceHtml = plantumlSourceHtml(node);
+  node.innerHTML = sourceHtml + svg;
+  const rendered = node.querySelector("svg") || node;
+  const rect = rendered.getBoundingClientRect();
+  const source = node.querySelector(".diagram-source")?.textContent ?? "";
+  if (source.trim()) {
+    plantumlCache.set(source, {
+      svg,
+      width: Math.max(0, Math.round(rect.width)),
+      height: Math.max(0, Math.round(rect.height)),
+    });
+  }
+}
+
+function preparePlantumlPlaceholders(snapshots) {
+  const nodes = [...content.querySelectorAll(".diagram-plantuml")];
+  nodes.forEach((node, index) => {
+    const source = node.querySelector(".diagram-source")?.textContent ?? "";
+    if (!source.trim()) return;
+
+    const cached = plantumlCache.get(source);
+    if (cached?.svg) {
+      setPlantumlSvg(node, cached.svg);
+      return;
+    }
+
+    const prev = snapshots[index];
+    const width = prev?.width || 0;
+    const height = prev?.height || 0;
+    setPlantumlSkeleton(node, width, height);
+  });
+}
+
+async function renderPlantumlDiagrams() {
+  const nodes = [...content.querySelectorAll(".diagram-plantuml")];
+  await Promise.all(nodes.map(async (node) => {
+    const source = node.querySelector(".diagram-source")?.textContent ?? "";
+    if (!source.trim()) return;
+
+    const cached = plantumlCache.get(source);
+    if (cached?.svg && node.querySelector("svg") && !node.querySelector(".diagram-skeleton")) {
+      return;
+    }
+
+    if (!node.querySelector(".diagram-skeleton") && !node.querySelector("svg")) {
+      const rect = node.getBoundingClientRect();
+      setPlantumlSkeleton(node, Math.round(rect.width), Math.round(rect.height) || 0);
+    }
+
     try {
       const res = await fetch("/__api/plantuml", {
         method: "POST",
@@ -308,12 +388,15 @@ async function renderDiagrams() {
       if (!res.ok) {
         throw new Error(text || res.statusText);
       }
-      node.innerHTML = text;
+      setPlantumlSvg(node, text);
+      fitWideTables();
     } catch (err) {
-      node.innerHTML = '<div class="diagram-error">PlantUML error: ' +
+      const sourceHtml = plantumlSourceHtml(node);
+      node.innerHTML = sourceHtml +
+        '<div class="diagram-error">PlantUML error: ' +
         (err && err.message ? err.message : String(err)) + "</div>";
     }
-  }
+  }));
 }
 
 function fitWideTables() {
@@ -324,6 +407,18 @@ function fitWideTables() {
   let widest = 0;
   for (const table of content.querySelectorAll("table")) {
     widest = Math.max(widest, table.scrollWidth);
+  }
+  for (const diagram of content.querySelectorAll(".diagram-plantuml")) {
+    widest = Math.max(widest, diagram.scrollWidth);
+    const svg = diagram.querySelector("svg");
+    if (svg) {
+      const attrWidth = Number.parseFloat(svg.getAttribute("width") || "");
+      const viewBox = svg.viewBox?.baseVal;
+      const natural = Number.isFinite(attrWidth) && attrWidth > 0
+        ? attrWidth
+        : (viewBox && viewBox.width > 0 ? viewBox.width : svg.scrollWidth);
+      widest = Math.max(widest, natural);
+    }
   }
   if (widest <= 0) {
     content.style.width = "min(52rem, 100%)";
@@ -384,7 +479,13 @@ async function load(path) {
     return;
   }
   const data = await res.json();
+  if (plantumlCachePath !== path) {
+    plantumlCache = new Map();
+    plantumlCachePath = path;
+  }
+  const plantumlSnapshots = snapshotPlantumlLayout();
   content.innerHTML = data.html;
+  preparePlantumlPlaceholders(plantumlSnapshots);
   await renderDiagrams();
   fitWideTables();
 }
