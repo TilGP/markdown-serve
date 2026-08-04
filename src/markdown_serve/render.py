@@ -71,4 +71,27 @@ def render_markdown(text: str) -> str:
 
 
 def pygments_css() -> str:
-    return HtmlFormatter(style="default").get_style_defs(".highlight")
+    light = HtmlFormatter(style="default").get_style_defs(".highlight")
+    # one-dark colors nearly all Name tokens red (#E06C75), which makes C/C++/etc
+    # code blocks look washed in red. nord keeps identifiers neutral.
+    dark = HtmlFormatter(style="nord").get_style_defs('html[data-theme="dark"] .highlight')
+    # Keep token colors from Pygments; force containers onto our theme surface
+    # so light #f8f8f8 never peeks behind rounded <pre> corners in dark mode.
+    override = """
+#content .highlight,
+#content .highlight pre,
+html[data-theme="dark"] #content .highlight,
+html[data-theme="dark"] #content .highlight pre {
+  background: var(--code-bg) !important;
+}
+#content .highlight {
+  border-radius: 8px;
+  overflow: hidden;
+}
+#content .highlight pre {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+"""
+    return f"{light}\n{dark}\n{override}"
