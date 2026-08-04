@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, Response
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
+from markdown_serve.config import load_config, public_config, update_config
 from markdown_serve.plantuml import PlantUMLError, render_plantuml_svg
 from markdown_serve.render import pygments_css, render_markdown
 
@@ -167,6 +168,21 @@ def create_app(root: Path) -> FastAPI:
             return Response(content=str(exc), status_code=400, media_type="text/plain; charset=utf-8")
         return Response(content=svg, media_type="image/svg+xml; charset=utf-8")
 
+    @app.get("/__api/config")
+    async def api_get_config() -> dict:
+        return public_config()
+
+    @app.put("/__api/config")
+    async def api_put_config(request: Request) -> dict:
+        try:
+            patch = await request.json()
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Invalid JSON") from exc
+        if not isinstance(patch, dict):
+            raise HTTPException(status_code=400, detail="Expected a JSON object")
+        update_config(patch)
+        return public_config()
+
     @app.get("/__file/{file_path:path}")
     async def serve_raw_file(file_path: str) -> Response:
         path = resolve_under_root(file_path)
@@ -177,7 +193,12 @@ def create_app(root: Path) -> FastAPI:
 
     @app.get("/__assets/pygments.css")
     async def pygments_stylesheet() -> Response:
-        return Response(content=pygments_css(), media_type="text/css; charset=utf-8")
+        cfg = load_config()
+        css = pygments_css(
+            light_style=cfg["styles"]["light"],
+            dark_style=cfg["styles"]["dark"],
+        )
+        return Response(content=css, media_type="text/css; charset=utf-8")
 
     @app.get("/__assets/{asset_path:path}")
     async def serve_ui_asset(asset_path: str) -> Response:
@@ -224,7 +245,6 @@ def create_app(root: Path) -> FastAPI:
 
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
-_INDEX_TEMPLATE = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")
 _UI_ASSET_SUFFIXES = {".js", ".css", ".mjs", ".map", ".woff", ".woff2", ".ttf", ".otf"}
 
 
@@ -248,12 +268,23 @@ def ui_asset_response(asset_path: str) -> Response:
 
 
 def page_shell(title: str, active: str, files: list[str]) -> str:
+    cfg = public_config()
     boot = json.dumps(
-        {"initialPath": active, "files": files},
+        {
+            "initialPath": active,
+            "files": files,
+            "config": {
+                "theme": cfg["theme"],
+                "styles": cfg["styles"],
+                "available_styles": cfg["available_styles"],
+            },
+        },
         ensure_ascii=False,
     ).replace("<", "\\u003c")
+    template = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")
     return (
-        _INDEX_TEMPLATE
+        template
         .replace("__TITLE__", html.escape(title))
+        .replace("__THEME__", html.escape(cfg["theme"]))
         .replace("__BOOT_JSON__", boot)
     )

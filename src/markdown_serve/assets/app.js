@@ -11,10 +11,18 @@ const status = document.getElementById("status");
 const nav = document.getElementById("nav");
 const finder = document.getElementById("finder");
 const themeToggle = document.getElementById("theme-toggle");
+const stylePicker = document.getElementById("style-picker");
+const styleSelect = document.getElementById("style-select");
+const pygmentsLink = document.getElementById("pygments-css");
 let currentPath = initialPath;
 let allFiles = initialFiles;
 let mermaidId = 0;
 let focusIndex = -1;
+let appConfig = boot.config || {
+  theme: "light",
+  styles: { light: "default", dark: "nord" },
+  available_styles: ["default", "nord"],
+};
 
 if (!mermaid) {
   console.error("mermaid failed to load from local assets");
@@ -24,7 +32,39 @@ function currentTheme() {
   return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
 }
 
-function applyTheme(theme) {
+function reloadPygmentsCss() {
+  if (!pygmentsLink) return;
+  const url = new URL(pygmentsLink.href, location.href);
+  url.searchParams.set("t", String(Date.now()));
+  pygmentsLink.href = url.pathname + url.search;
+}
+
+async function saveConfig(patch) {
+  const res = await fetch("/__api/config", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error("Failed to save config");
+  appConfig = await res.json();
+  return appConfig;
+}
+
+function syncStyleSelect() {
+  const theme = currentTheme();
+  const selected = appConfig.styles?.[theme] || (theme === "dark" ? "nord" : "default");
+  const styles = appConfig.available_styles || [];
+  styleSelect.replaceChildren();
+  for (const name of styles) {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    if (name === selected) opt.selected = true;
+    styleSelect.appendChild(opt);
+  }
+}
+
+function applyTheme(theme, { persist = true } = {}) {
   document.documentElement.setAttribute("data-theme", theme);
   try { localStorage.setItem("markdown-serve-theme", theme); } catch (_) {}
   if (mermaid) {
@@ -36,6 +76,10 @@ function applyTheme(theme) {
   }
   themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
   themeToggle.title = theme === "dark" ? "Light theme" : "Dark theme";
+  syncStyleSelect();
+  if (persist) {
+    saveConfig({ theme }).catch((err) => console.error(err));
+  }
 }
 
 themeToggle.addEventListener("click", () => {
@@ -44,7 +88,26 @@ themeToggle.addEventListener("click", () => {
   if (currentPath && fileKind(currentPath) === "markdown") load(currentPath);
 });
 
-applyTheme(currentTheme());
+themeToggle.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  const open = stylePicker.hidden;
+  stylePicker.hidden = !open;
+  if (open) styleSelect.focus();
+});
+
+styleSelect.addEventListener("change", async () => {
+  const theme = currentTheme();
+  const style = styleSelect.value;
+  try {
+    await saveConfig({ styles: { [theme]: style } });
+    reloadPygmentsCss();
+  } catch (err) {
+    console.error(err);
+    syncStyleSelect();
+  }
+});
+
+applyTheme(appConfig.theme || currentTheme(), { persist: false });
 
 function extOf(path) {
   const i = path.lastIndexOf(".");

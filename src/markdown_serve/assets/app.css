@@ -123,6 +123,33 @@ html:not([data-theme="dark"]) #theme-toggle .icon-sun { display: none; }
   padding: 0 0.25rem;
   background: var(--code-bg);
 }
+.style-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0 0 0.65rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+.style-picker[hidden] {
+  display: none !important;
+}
+.style-picker select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+  font-size: 0.75rem;
+  background: var(--panel);
+  color: var(--ink);
+  outline: none;
+}
+.style-picker select:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 .tree, .tree ul {
   list-style: none;
   margin: 0;

@@ -1,0 +1,7 @@
+{
+  "theme": "dark",
+  "styles": {
+    "light": "default",
+    "dark": "perldoc"
+  }
+}

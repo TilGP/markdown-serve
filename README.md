@@ -4,6 +4,8 @@ Live-preview all markdown files in the current working directory, with hot reloa
 
 Runs fully offline: UI assets, Mermaid, and PlantUML are local (no CDN / plantuml.com).
 
+Theme and Pygments styles are stored in `src/markdown_serve/config.json` and can be changed from the sidebar.
+
 ## Setup
 
 ```bash

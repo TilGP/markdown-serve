@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="__THEME__">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>__TITLE__ — markdown-serve</title>
   <script src="/__assets/theme-boot.js"></script>
   <link rel="stylesheet" href="/__assets/app.css">
-  <link rel="stylesheet" href="/__assets/pygments.css">
+  <link id="pygments-css" rel="stylesheet" href="/__assets/pygments.css">
   <script src="/__assets/vendor/mermaid.min.js"></script>
 </head>
 <body>
@@ -25,6 +25,10 @@
         </button>
       </div>
       <div class="finder-wrap">
+        <label class="style-picker" id="style-picker" hidden>
+          <span>Code style</span>
+          <select id="style-select" aria-label="Pygments style for current theme"></select>
+        </label>
         <input id="finder" type="search" placeholder="Search files…" autocomplete="off" spellcheck="false">
         <div class="finder-hint"><span>fuzzy · <kbd>'</kbd> exact</span><span><kbd>/</kbd> focus</span></div>
       </div>
