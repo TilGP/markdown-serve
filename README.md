@@ -2,11 +2,15 @@
 
 Live-preview all markdown files in the current working directory, with hot reload and static asset serving for linked files (images, PDFs, etc.).
 
+Runs fully offline: UI assets, Mermaid, and PlantUML are local (no CDN / plantuml.com).
+
 ## Setup
 
 ```bash
 uv sync
 ```
+
+PlantUML diagrams need a JRE (`java` on `PATH`). A PlantUML jar is vendored under `src/markdown_serve/assets/vendor/`. Alternatively install a `plantuml` binary.
 
 Add the project `bin/` directory to your `PATH`:
 
@@ -35,8 +39,6 @@ The server watches the tree for changes and refreshes the browser automatically.
 
 ## Diagrams
 
-Fenced blocks are rendered in the browser:
-
 ````markdown
 ```mermaid
 flowchart LR
@@ -50,4 +52,4 @@ Alice -> Bob: hello
 ```
 ````
 
-Mermaid runs locally via Mermaid.js. PlantUML is encoded and rendered through [plantuml.com](https://www.plantuml.com) (diagram source is sent to that service).
+Mermaid renders in the browser from a vendored script. PlantUML is rendered locally via Java.

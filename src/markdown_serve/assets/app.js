@@ -1,9 +1,6 @@
-import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-import plantumlEncoder from "https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/+esm";
-
 const boot = JSON.parse(document.getElementById("markdown-serve-boot").textContent);
+const mermaid = window.mermaid;
 
-const PLANTUML_SERVER = "https://www.plantuml.com/plantuml/svg/";
 const MARKDOWN_EXT = new Set(["md", "markdown", "mdown", "mkd"]);
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"]);
 const PDF_EXT = new Set(["pdf"]);
@@ -19,6 +16,10 @@ let allFiles = initialFiles;
 let mermaidId = 0;
 let focusIndex = -1;
 
+if (!mermaid) {
+  console.error("mermaid failed to load from local assets");
+}
+
 function currentTheme() {
   return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
 }
@@ -26,11 +27,13 @@ function currentTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
   try { localStorage.setItem("markdown-serve-theme", theme); } catch (_) {}
-  mermaid.initialize({
-    startOnLoad: false,
-    securityLevel: "loose",
-    theme: theme === "dark" ? "dark" : "neutral",
-  });
+  if (mermaid) {
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "loose",
+      theme: theme === "dark" ? "dark" : "neutral",
+    });
+  }
   themeToggle.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
   themeToggle.title = theme === "dark" ? "Light theme" : "Dark theme";
 }
@@ -232,14 +235,21 @@ async function renderDiagrams() {
   for (const node of content.querySelectorAll(".diagram-plantuml")) {
     const source = node.querySelector(".diagram-source")?.textContent ?? "";
     if (!source.trim()) continue;
-    const img = document.createElement("img");
-    img.alt = "PlantUML diagram";
-    img.src = PLANTUML_SERVER + plantumlEncoder.encode(source);
-    img.onerror = () => {
-      node.innerHTML = '<div class="diagram-error">Failed to render PlantUML diagram. ' +
-        "Check syntax or plantuml.com availability.</div>";
-    };
-    node.replaceChildren(img);
+    try {
+      const res = await fetch("/__api/plantuml", {
+        method: "POST",
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+        body: source,
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        throw new Error(text || res.statusText);
+      }
+      node.innerHTML = text;
+    } catch (err) {
+      node.innerHTML = '<div class="diagram-error">PlantUML error: ' +
+        (err && err.message ? err.message : String(err)) + "</div>";
+    }
   }
 }
 
@@ -360,18 +370,87 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+const MAX_RECONNECT_ATTEMPTS = 3;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+let activeSocket = null;
+
+function clearReconnectTimer() {
+  if (reconnectTimer != null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+}
+
+function showDisconnected() {
+  clearReconnectTimer();
+  status.classList.remove("live");
+  status.classList.add("offline");
+  status.replaceChildren();
+  status.append("disconnected");
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.id = "reconnect-btn";
+  btn.className = "reconnect-btn";
+  btn.textContent = "Reconnect";
+  btn.addEventListener("click", () => {
+    reconnectAttempts = 0;
+    connect();
+  });
+  status.appendChild(btn);
+}
+
 function connect() {
+  clearReconnectTimer();
+  if (activeSocket) {
+    activeSocket.onopen = null;
+    activeSocket.onclose = null;
+    activeSocket.onmessage = null;
+    activeSocket.onerror = null;
+    try { activeSocket.close(); } catch (_) {}
+    activeSocket = null;
+  }
+
+  status.classList.remove("live", "offline");
+  status.textContent = reconnectAttempts > 0
+    ? `reconnecting (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})…`
+    : "connecting…";
+
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(proto + "://" + location.host + "/__ws");
+  let ws;
+  try {
+    ws = new WebSocket(proto + "://" + location.host + "/__ws");
+  } catch (_) {
+    reconnectAttempts += 1;
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      showDisconnected();
+      return;
+    }
+    reconnectTimer = setTimeout(connect, 800);
+    return;
+  }
+  activeSocket = ws;
+
   ws.onopen = () => {
-    status.textContent = "live";
+    reconnectAttempts = 0;
+    status.classList.remove("offline");
     status.classList.add("live");
+    status.textContent = "live";
   };
+
   ws.onclose = () => {
-    status.textContent = "reconnecting…";
+    if (activeSocket === ws) activeSocket = null;
     status.classList.remove("live");
-    setTimeout(connect, 800);
+    reconnectAttempts += 1;
+    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      showDisconnected();
+      return;
+    }
+    status.classList.remove("offline");
+    status.textContent = `reconnecting (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})…`;
+    reconnectTimer = setTimeout(connect, 800);
   };
+
   ws.onmessage = async (ev) => {
     const changed = ev.data;
     try {

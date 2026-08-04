@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse, Response
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
+from markdown_serve.plantuml import PlantUMLError, render_plantuml_svg
 from markdown_serve.render import pygments_css, render_markdown
 
 MARKDOWN_SUFFIXES = {".md", ".markdown", ".mdown", ".mkd"}
@@ -157,6 +158,15 @@ def create_app(root: Path) -> FastAPI:
         text = path.read_text(encoding="utf-8")
         return {"path": file_path, "html": render_markdown(text)}
 
+    @app.post("/__api/plantuml")
+    async def api_plantuml(request: Request) -> Response:
+        source = (await request.body()).decode("utf-8", errors="replace")
+        try:
+            svg = render_plantuml_svg(source)
+        except PlantUMLError as exc:
+            return Response(content=str(exc), status_code=400, media_type="text/plain; charset=utf-8")
+        return Response(content=svg, media_type="image/svg+xml; charset=utf-8")
+
     @app.get("/__file/{file_path:path}")
     async def serve_raw_file(file_path: str) -> Response:
         path = resolve_under_root(file_path)
@@ -215,16 +225,19 @@ def create_app(root: Path) -> FastAPI:
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 _INDEX_TEMPLATE = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")
+_UI_ASSET_SUFFIXES = {".js", ".css", ".mjs", ".map", ".woff", ".woff2", ".ttf", ".otf"}
 
 
 def ui_asset_response(asset_path: str) -> Response:
-    """Serve packaged UI files (css/js). Reject path escape attempts."""
+    """Serve packaged UI files (css/js/fonts). Reject jars and path escapes."""
     candidate = (ASSETS_DIR / asset_path).resolve()
     try:
         candidate.relative_to(ASSETS_DIR)
     except ValueError as exc:
         raise HTTPException(status_code=403, detail="Forbidden") from exc
     if not candidate.is_file() or candidate.name == "index.html":
+        raise HTTPException(status_code=404, detail="Not found")
+    if candidate.suffix.lower() not in _UI_ASSET_SUFFIXES:
         raise HTTPException(status_code=404, detail="Not found")
     media_type, _ = mimetypes.guess_type(str(candidate))
     return Response(
