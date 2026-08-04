@@ -8,6 +8,8 @@
   --accent-soft: #ccfbf1;
   --code-bg: #f5f5f4;
   --sidebar-w: 300px;
+  --font-sans: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "FiraCode Nerd Font", "FiraCode Nerd Font Mono", "Fira Code", ui-monospace, monospace;
 }
 html[data-theme="dark"] {
   --bg: #141210;
@@ -22,7 +24,7 @@ html[data-theme="dark"] {
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body {
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   color: var(--ink);
   background: var(--bg);
 }
@@ -49,7 +51,7 @@ aside {
   padding: 0 0.5rem 1rem;
 }
 .brand {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -115,7 +117,7 @@ html:not([data-theme="dark"]) #theme-toggle .icon-sun { display: none; }
   margin-top: 0.35rem;
   font-size: 0.65rem;
   color: var(--muted);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 .finder-hint kbd {
   border: 1px solid var(--line);
@@ -130,7 +132,7 @@ html:not([data-theme="dark"]) #theme-toggle .icon-sun { display: none; }
   margin: 0 0 0.65rem;
   font-size: 0.7rem;
   color: var(--muted);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 .style-picker[hidden] {
   display: none !important;
@@ -222,7 +224,7 @@ html:not([data-theme="dark"]) #theme-toggle .icon-sun { display: none; }
 }
 .nav-link .ext {
   flex: 0 0 auto;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.65rem;
   text-transform: uppercase;
   color: var(--muted);
@@ -257,7 +259,7 @@ main {
   min-height: 100vh;
 }
 #status {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--muted);
   margin-bottom: 1rem;
@@ -342,7 +344,7 @@ main {
 #content.asset-mode :first-child { margin-top: auto; }
 #content.asset-mode :last-child { margin-bottom: auto; }
 #content h1, #content h2, #content h3, #content h4 {
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-family: var(--font-sans);
   line-height: 1.25;
   font-weight: 600;
 }
@@ -354,8 +356,18 @@ main {
   margin-top: 1.75rem;
 }
 #content a { color: var(--accent); }
+#content a.headerlink {
+  color: color-mix(in srgb, var(--ink) 35%, transparent);
+  text-decoration: none;
+  margin-left: 0.35em;
+  font-weight: 400;
+}
+#content a.headerlink:hover,
+#content a.headerlink:focus-visible {
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+}
 #content code {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.875em;
   background: var(--code-bg);
   padding: 0.1em 0.35em;
@@ -405,7 +417,7 @@ main {
 .diagram img, .diagram svg { max-width: 100%; height: auto; }
 .diagram-error {
   color: #b91c1c;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   text-align: left;
   white-space: pre-wrap;

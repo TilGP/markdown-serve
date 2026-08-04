@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, Response
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-from markdown_serve.config import load_config, public_config, update_config
+from markdown_serve.config import font_stack_css, load_config, public_config, update_config
 from markdown_serve.plantuml import PlantUMLError, render_plantuml_svg
 from markdown_serve.render import pygments_css, render_markdown
 
@@ -276,6 +276,7 @@ def page_shell(title: str, active: str, files: list[str]) -> str:
             "config": {
                 "theme": cfg["theme"],
                 "styles": cfg["styles"],
+                "fonts": cfg["fonts"],
                 "available_styles": cfg["available_styles"],
             },
         },
@@ -286,5 +287,7 @@ def page_shell(title: str, active: str, files: list[str]) -> str:
         template
         .replace("__TITLE__", html.escape(title))
         .replace("__THEME__", html.escape(cfg["theme"]))
+        .replace("__FONT_SANS__", font_stack_css(cfg["fonts"]["sans"]))
+        .replace("__FONT_MONO__", font_stack_css(cfg["fonts"]["mono"]))
         .replace("__BOOT_JSON__", boot)
     )

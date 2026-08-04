@@ -2,6 +2,21 @@
   "theme": "dark",
   "styles": {
     "light": "default",
-    "dark": "perldoc"
+    "dark": "monokai"
+  },
+  "fonts": {
+    "sans": [
+      "Avenir Next",
+      "Segoe UI",
+      "system-ui",
+      "sans-serif"
+    ],
+    "mono": [
+      "FiraCode Nerd Font",
+      "FiraCode Nerd Font Mono",
+      "Fira Code",
+      "ui-monospace",
+      "monospace"
+    ]
   }
 }
