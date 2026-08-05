@@ -16,9 +16,9 @@ Point it at a notes tree, a docs repo, or any project with `.md` files. You get 
 |---|---|
 | **Browse the tree** | Sidebar lists Markdown, images, and PDFs under the serve root. Fuzzy find with `/`, or prefix with `'` for exact match. |
 | **Live preview** | Edits on disk refresh the browser over a WebSocket. Save and the page updates. |
-| **Real rendering** | Tables, syntax-highlighted code (Pygments), images, linked assets, PDF iframe preview. |
-| **Diagrams** | `mermaid` and `plantuml` / `puml` fences render in place — Mermaid in the browser, PlantUML via local Java. |
-| **Themes** | Light/dark toggle (persisted). Right-click the theme button to pick a Pygments style per theme. |
+| **Real rendering** | Tables, syntax-highlighted code ([Pygments](https://pygments.org/)), images, linked assets, PDF iframe preview. |
+| **Diagrams** | [`mermaid`](https://mermaid.js.org/) and [`plantuml`](https://plantuml.com/) / `puml` fences render in place — Mermaid in the browser, PlantUML via local Java. |
+| **Themes** | Light/dark toggle (persisted). **Right-click the theme button** to show a Pygments style picker for the current theme (code highlighting). |
 | **Offline-first** | UI, Mermaid, and PlantUML jar ship with the project. Works on a plane. |
 
 Wide tables and PlantUML SVGs expand the content panel instead of getting squashed.
@@ -66,12 +66,12 @@ Alice -> Bob: hello
 ```
 ````
 
-Mermaid uses the vendored browser script. PlantUML runs locally (`java -jar` on the bundled LGPL jar, or a `plantuml` binary on `PATH`).
+[Mermaid](https://mermaid.js.org/) uses the vendored browser script. [PlantUML](https://plantuml.com/) runs locally (`java -jar` on the bundled LGPL jar, or a `plantuml` binary on `PATH`).
 
 ## Configuration
 
 On first run, `src/markdown_serve/config.json` is created with defaults if it is missing.
-It holds theme, Pygments styles, and font stacks:
+It holds theme, [Pygments](https://pygments.org/) styles, and font stacks:
 
 ```json
 {
@@ -84,14 +84,15 @@ It holds theme, Pygments styles, and font stacks:
 }
 ```
 
-Theme and style choices from the UI are written back here. Fonts are config-only (no picker).
-The file is gitignored so local preferences stay on your machine.
+Left-click the sun/moon button to toggle light and dark. **Right-click it** to reveal the code-highlighting style dropdown for the active theme (any installed Pygments style). Choices are written back to this file. Fonts are config-only (no picker). The file is gitignored so local preferences stay on your machine.
 
 ## Third-party / offline assets
 
 Vendored under `src/markdown_serve/assets/vendor/`:
 
-- **Mermaid** (MIT) — `mermaid.min.js`
-- **PlantUML** (LGPL jar, unmodified) — `plantuml.jar`
+- **[Mermaid](https://mermaid.js.org/)** (MIT) — `mermaid.min.js`
+- **[PlantUML](https://plantuml.com/)** (LGPL jar, unmodified) — `plantuml.jar`
+
+Code blocks are highlighted with **[Pygments](https://pygments.org/)** (Python dependency, not vendored as a static asset).
 
 markdown-serve uses PlantUML, which is distributed under the LGPL. Details: `src/markdown_serve/assets/vendor/README.md`.
