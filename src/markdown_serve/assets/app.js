@@ -459,11 +459,12 @@ function snapshotPlantumlLayout() {
     const svg = node.querySelector("svg");
     const target = svg || node.querySelector(".diagram-skeleton") || node;
     const rect = target.getBoundingClientRect();
+    const cached = plantumlCache.get(source);
     return {
       source,
-      width: Math.max(0, Math.round(rect.width)),
-      height: Math.max(0, Math.round(rect.height)),
-      svg: svg ? svg.outerHTML : (plantumlCache.get(source)?.svg ?? ""),
+      width: Math.max(0, Math.round(rect.width)) || cached?.width || 0,
+      height: Math.max(0, Math.round(rect.height)) || cached?.height || 0,
+      svg: svg ? svg.outerHTML : (cached?.svg ?? ""),
     };
   });
 }
@@ -476,40 +477,54 @@ function setPlantumlSkeleton(node, width, height) {
   const sourceHtml = plantumlSourceHtml(node);
   const w = width > 0 ? `${width}px` : "100%";
   const h = height > 0 ? `${height}px` : "8rem";
+  node.style.minHeight = height > 0 ? `${height}px` : "";
   node.innerHTML = sourceHtml +
     `<div class="diagram-skeleton" style="width:${w};max-width:100%;height:${h};min-height:${h}" aria-hidden="true"></div>`;
 }
 
-function setPlantumlSvg(node, svg) {
+function setPlantumlSvg(node, svg, { reserveHeight = 0 } = {}) {
   const sourceHtml = plantumlSourceHtml(node);
+  if (reserveHeight > 0) {
+    node.style.minHeight = `${reserveHeight}px`;
+  }
   node.innerHTML = sourceHtml + svg;
   const rendered = node.querySelector("svg") || node;
   const rect = rendered.getBoundingClientRect();
   const source = node.querySelector(".diagram-source")?.textContent ?? "";
+  const width = Math.max(0, Math.round(rect.width));
+  const height = Math.max(0, Math.round(rect.height), reserveHeight);
   if (source.trim()) {
-    plantumlCache.set(source, {
-      svg,
-      width: Math.max(0, Math.round(rect.width)),
-      height: Math.max(0, Math.round(rect.height)),
-    });
+    plantumlCache.set(source, { svg, width, height });
   }
+  // Keep reserved height until the SVG has painted at full size.
+  requestAnimationFrame(() => {
+    const next = node.getBoundingClientRect().height;
+    if (next >= reserveHeight - 1) node.style.minHeight = "";
+  });
 }
 
 function preparePlantumlPlaceholders(snapshots) {
+  const bySource = new Map();
+  for (const snap of snapshots) {
+    if (snap.source.trim() && !bySource.has(snap.source)) {
+      bySource.set(snap.source, snap);
+    }
+  }
   const nodes = [...content.querySelectorAll(".diagram-plantuml")];
   nodes.forEach((node, index) => {
     const source = node.querySelector(".diagram-source")?.textContent ?? "";
     if (!source.trim()) return;
 
     const cached = plantumlCache.get(source);
+    const prev = bySource.get(source) || snapshots[index];
+    const height = cached?.height || prev?.height || 0;
+    const width = cached?.width || prev?.width || 0;
+
     if (cached?.svg) {
-      setPlantumlSvg(node, cached.svg);
+      setPlantumlSvg(node, cached.svg, { reserveHeight: height });
       return;
     }
 
-    const prev = snapshots[index];
-    const width = prev?.width || 0;
-    const height = prev?.height || 0;
     setPlantumlSkeleton(node, width, height);
   });
 }
@@ -530,6 +545,8 @@ async function renderPlantumlDiagrams() {
       setPlantumlSkeleton(node, Math.round(rect.width), Math.round(rect.height) || 0);
     }
 
+    const reserved = Math.round(node.getBoundingClientRect().height) || cached?.height || 0;
+
     try {
       const res = await fetch("/__api/plantuml", {
         method: "POST",
@@ -540,9 +557,10 @@ async function renderPlantumlDiagrams() {
       if (!res.ok) {
         throw new Error(text || res.statusText);
       }
-      setPlantumlSvg(node, text);
+      setPlantumlSvg(node, text, { reserveHeight: reserved });
       fitWideTables();
     } catch (err) {
+      node.style.minHeight = "";
       const sourceHtml = plantumlSourceHtml(node);
       node.innerHTML = sourceHtml +
         '<div class="diagram-error">PlantUML error: ' +
@@ -742,6 +760,8 @@ async function load(path, { line = null } = {}) {
     clearToc();
     return;
   }
+  const previousPath = currentPath;
+  const preserveScroll = previousPath === path && (line == null || line <= 0);
   const kind = fileKind(path);
   currentPath = path;
   document.title = path + " — markdown-serve";
@@ -780,6 +800,7 @@ async function load(path, { line = null } = {}) {
     plantumlCache = new Map();
     plantumlCachePath = path;
   }
+  const scrollState = preserveScroll ? captureScrollAnchor() : null;
   const plantumlSnapshots = snapshotPlantumlLayout();
   content.innerHTML = data.html;
   preparePlantumlPlaceholders(plantumlSnapshots);
@@ -789,7 +810,76 @@ async function load(path, { line = null } = {}) {
   await markBrokenLinks(path);
   if (line != null && line > 0) {
     requestAnimationFrame(() => scrollToSourceLine(data.text || "", line));
+  } else if (scrollState) {
+    restoreScrollAnchor(scrollState);
+    requestAnimationFrame(() => {
+      restoreScrollAnchor(scrollState);
+      // Mermaid/PlantUML may still settle one frame later.
+      requestAnimationFrame(() => restoreScrollAnchor(scrollState));
+    });
+  } else if (previousPath !== path) {
+    const scroller = document.scrollingElement || document.documentElement;
+    scroller.scrollTop = 0;
   }
+}
+
+function captureScrollAnchor() {
+  const scroller = document.scrollingElement || document.documentElement;
+  const scrollY = scroller.scrollTop;
+  const probeY = 64;
+  const blocks = content.querySelectorAll(
+    "h1, h2, h3, h4, h5, h6, p, li, pre, table, blockquote, .diagram, .highlight",
+  );
+  let anchor = null;
+  for (const el of blocks) {
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom <= probeY) continue;
+    if (rect.top > window.innerHeight) break;
+    anchor = {
+      id: el.id || "",
+      text: (el.innerText || "").replace(/\s+/g, " ").trim().slice(0, 96),
+      tag: el.tagName.toLowerCase(),
+      offset: rect.top,
+    };
+    break;
+  }
+  return { scrollY, anchor };
+}
+
+function restoreScrollAnchor(state) {
+  if (!state) return;
+  const scroller = document.scrollingElement || document.documentElement;
+  const anchor = state.anchor;
+  if (anchor) {
+    let el = null;
+    if (anchor.id) {
+      try {
+        el = content.querySelector("#" + CSS.escape(anchor.id));
+      } catch (_) {
+        el = document.getElementById(anchor.id);
+        if (el && !content.contains(el)) el = null;
+      }
+    }
+    if (!el && anchor.text) {
+      const needle = anchor.text.slice(0, 48);
+      const candidates = content.querySelectorAll(anchor.tag || "p, h1, h2, h3, h4, li, pre");
+      for (const candidate of candidates) {
+        const text = (candidate.innerText || "").replace(/\s+/g, " ").trim();
+        if (text.startsWith(needle) || text.includes(needle)) {
+          el = candidate;
+          break;
+        }
+      }
+    }
+    if (el) {
+      const delta = el.getBoundingClientRect().top - anchor.offset;
+      if (Math.abs(delta) > 0.5) {
+        scroller.scrollTop += delta;
+      }
+      return;
+    }
+  }
+  scroller.scrollTop = state.scrollY;
 }
 
 function lineNeedle(rawLine) {
