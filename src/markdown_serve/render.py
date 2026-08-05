@@ -15,7 +15,8 @@ EXTENSIONS = [
     "tables",
     "toc",
     "nl2br",
-    "sane_lists",
+    # Replaces sane_lists; 2-space nesting matches GFM/CommonMark editors.
+    "mdx_truly_sane_lists",
     "smarty",
 ]
 
@@ -27,6 +28,10 @@ EXTENSION_CONFIGS = {
     },
     "toc": {
         "permalink": True,
+    },
+    "mdx_truly_sane_lists": {
+        "nested_indent": 2,
+        "truly_sane": True,
     },
 }
 
