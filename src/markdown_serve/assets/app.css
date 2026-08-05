@@ -503,6 +503,7 @@ main {
   box-sizing: border-box;
   width: min(52rem, 100%);
   min-width: min(52rem, 100%);
+  line-height: calc(1.2em + 2px);
 }
 #content.asset-mode {
   padding: 0;
