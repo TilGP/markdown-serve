@@ -1,7 +1,7 @@
 [project]
 name = "markdown-serve"
 version = "0.1.0"
-description = "Live-preview markdown files in the current directory"
+description = "Local live Markdown viewer with file tree, hot reload, and offline Mermaid/PlantUML"
 readme = "README.md"
 authors = [
     { name = "Til Georg Pockrandt", email = "til.pockrandt@check24.de" }

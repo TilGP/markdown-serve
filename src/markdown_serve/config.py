@@ -51,6 +51,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
 _lock = threading.Lock()
 
 
+def _write_config_file(cfg: dict[str, Any]) -> None:
+    CONFIG_PATH.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+
+
 def _normalize_font_list(value: Any, fallback: list[str]) -> list[str]:
     if isinstance(value, str) and value.strip():
         # Allow a raw CSS font-family string in config for power users.
@@ -106,8 +110,9 @@ def _normalize(data: dict[str, Any]) -> dict[str, Any]:
 def load_config() -> dict[str, Any]:
     with _lock:
         if not CONFIG_PATH.is_file():
-            save_config(DEFAULT_CONFIG)
-            return deepcopy(DEFAULT_CONFIG)
+            cfg = deepcopy(DEFAULT_CONFIG)
+            _write_config_file(cfg)
+            return deepcopy(cfg)
         try:
             raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -120,7 +125,7 @@ def load_config() -> dict[str, Any]:
 def save_config(data: dict[str, Any]) -> dict[str, Any]:
     cfg = _normalize(data)
     with _lock:
-        CONFIG_PATH.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+        _write_config_file(cfg)
     return cfg
 
 

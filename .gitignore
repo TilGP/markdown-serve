@@ -8,3 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+
+# OS junk
+.DS_Store
+
+# Local viewer preferences (created on first run)
+src/markdown_serve/config.json
