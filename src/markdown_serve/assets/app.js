@@ -9,8 +9,14 @@ const initialFiles = boot.files;
 const content = document.getElementById("content");
 const status = document.getElementById("status");
 const nav = document.getElementById("nav");
+const toc = document.getElementById("toc");
+const layout = document.getElementById("layout");
 const finder = document.getElementById("finder");
 const themeToggle = document.getElementById("theme-toggle");
+const filesCollapse = document.getElementById("files-collapse");
+const filesExpand = document.getElementById("files-expand");
+const tocCollapse = document.getElementById("toc-collapse");
+const tocExpand = document.getElementById("toc-expand");
 const stylePicker = document.getElementById("style-picker");
 const styleSelect = document.getElementById("style-select");
 const pygmentsLink = document.getElementById("pygments-css");
@@ -18,10 +24,14 @@ let currentPath = initialPath;
 let allFiles = initialFiles;
 let mermaidId = 0;
 let focusIndex = -1;
+let tocObserver = null;
+let brokenLinkToken = 0;
+let tocCollapsedPref = false;
 let appConfig = boot.config || {
   theme: "light",
   styles: { light: "default", dark: "nord" },
   available_styles: ["default", "nord"],
+  sidebars: { files_collapsed: false, toc_collapsed: false },
 };
 
 if (!mermaid) {
@@ -85,7 +95,9 @@ function applyTheme(theme, { persist = true } = {}) {
 themeToggle.addEventListener("click", () => {
   const next = currentTheme() === "dark" ? "light" : "dark";
   applyTheme(next);
-  if (currentPath && fileKind(currentPath) === "markdown") load(currentPath);
+  if (currentPath && fileKind(currentPath) === "markdown") {
+    load(currentPath, { line: lineFromLocation() });
+  }
 });
 
 themeToggle.addEventListener("contextmenu", (e) => {
@@ -108,6 +120,47 @@ styleSelect.addEventListener("change", async () => {
 });
 
 applyTheme(appConfig.theme || currentTheme(), { persist: false });
+
+function setFilesCollapsed(collapsed, { persist = true } = {}) {
+  layout.classList.toggle("files-collapsed", collapsed);
+  filesExpand.hidden = !collapsed;
+  filesCollapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  if (persist) {
+    const sidebars = { ...(appConfig.sidebars || {}), files_collapsed: collapsed };
+    appConfig = { ...appConfig, sidebars };
+    saveConfig({ sidebars: { files_collapsed: collapsed } }).catch((err) => console.error(err));
+  }
+  requestAnimationFrame(fitWideTables);
+}
+
+function syncTocExpandButton() {
+  const hasToc = !layout.classList.contains("no-toc");
+  const collapsed = layout.classList.contains("toc-collapsed");
+  tocExpand.hidden = !(hasToc && collapsed);
+  tocCollapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
+}
+
+function setTocCollapsed(collapsed, { persist = true } = {}) {
+  tocCollapsedPref = collapsed;
+  layout.classList.toggle("toc-collapsed", collapsed);
+  syncTocExpandButton();
+  if (persist) {
+    const sidebars = { ...(appConfig.sidebars || {}), toc_collapsed: collapsed };
+    appConfig = { ...appConfig, sidebars };
+    saveConfig({ sidebars: { toc_collapsed: collapsed } }).catch((err) => console.error(err));
+  }
+  requestAnimationFrame(fitWideTables);
+}
+
+filesCollapse.addEventListener("click", () => setFilesCollapsed(true));
+filesExpand.addEventListener("click", () => setFilesCollapsed(false));
+tocCollapse.addEventListener("click", () => setTocCollapsed(true));
+tocExpand.addEventListener("click", () => setTocCollapsed(false));
+
+const sidebarPrefs = appConfig.sidebars || {};
+setFilesCollapsed(Boolean(sidebarPrefs.files_collapsed), { persist: false });
+tocCollapsedPref = Boolean(sidebarPrefs.toc_collapsed);
+setTocCollapsed(tocCollapsedPref, { persist: false });
 
 function extOf(path) {
   const i = path.lastIndexOf(".");
@@ -184,6 +237,25 @@ function scoreSubsequence(query, text) {
   return qi === query.length ? score : -1;
 }
 
+let searchMode = "files";
+let contentSearchToken = 0;
+let contentSearchTimer = null;
+
+function setSearchMode(mode) {
+  searchMode = mode === "content" ? "content" : "files";
+  const filesBtn = document.getElementById("search-mode-files");
+  const contentBtn = document.getElementById("search-mode-content");
+  filesBtn.classList.toggle("active", searchMode === "files");
+  contentBtn.classList.toggle("active", searchMode === "content");
+  filesBtn.setAttribute("aria-selected", searchMode === "files" ? "true" : "false");
+  contentBtn.setAttribute("aria-selected", searchMode === "content" ? "true" : "false");
+  finder.placeholder = searchMode === "content" ? "Search content…" : "Search files…";
+  renderNav(allFiles, currentPath, finder.value);
+}
+
+document.getElementById("search-mode-files").addEventListener("click", () => setSearchMode("files"));
+document.getElementById("search-mode-content").addEventListener("click", () => setSearchMode("content"));
+
 function buildTree(files) {
   const root = { dirs: {}, files: [] };
   for (const path of files) {
@@ -205,7 +277,7 @@ function escapeHtml(s) {
   })[c]);
 }
 
-function linkHtml(path, active, { showPath = false } = {}) {
+function linkHtml(path, active, { showPath = false, snippet = "", line = null } = {}) {
   const kind = fileKind(path);
   const name = basename(path);
   const activeClass = path === active ? " active" : "";
@@ -213,13 +285,31 @@ function linkHtml(path, active, { showPath = false } = {}) {
   const pathHint = showPath && dir
     ? '<span class="path-hint">' + escapeHtml(dir) + "</span>"
     : "";
-  return '<a href="/' + escapeHtml(path) +
-    '" class="nav-link kind-' + kind + activeClass +
-    '" data-path="' + escapeHtml(path) +
-    '" title="' + escapeHtml(path) + '">' +
+  const lineAttr = line != null ? ' data-line="' + String(line) + '"' : "";
+  const href = "/" + escapeHtml(path) + (line != null ? "?line=" + String(line) : "");
+  const lineBadge = line != null
+    ? '<span class="line-badge">L' + String(line) + "</span>"
+    : "";
+  const top = '<span class="hit-top">' +
     '<span class="name">' + escapeHtml(name) + "</span>" +
     pathHint +
-    '<span class="ext">' + escapeHtml(extOf(path) || "file") + "</span></a>";
+    lineBadge +
+    '<span class="ext">' + escapeHtml(extOf(path) || "file") + "</span>" +
+    "</span>";
+  const snip = snippet
+    ? '<span class="search-snippet">' + escapeHtml(snippet) + "</span>"
+    : "";
+  return '<a href="' + href +
+    '" class="nav-link kind-' + kind + activeClass +
+    '" data-path="' + escapeHtml(path) + '"' +
+    lineAttr +
+    ' title="' + escapeHtml(path) + (line != null ? ":" + String(line) : "") + '">' +
+    (snippet || line != null ? top + snip : (
+      '<span class="name">' + escapeHtml(name) + "</span>" +
+      pathHint +
+      '<span class="ext">' + escapeHtml(extOf(path) || "file") + "</span>"
+    )) +
+    "</a>";
 }
 
 function renderNode(node, active, prefix) {
@@ -241,18 +331,80 @@ function renderNode(node, active, prefix) {
   return html;
 }
 
-function renderNav(files, active, query = "") {
-  allFiles = files;
-  focusIndex = -1;
+function renderFileTree(files, active) {
+  nav.innerHTML = renderNode(buildTree(files), active, "").replace(
+    'class="tree-level"', 'class="tree"'
+  );
+}
+
+async function renderContentSearch(files, active, query) {
+  const token = ++contentSearchToken;
   const q = query.trim();
   if (!files.length) {
     nav.innerHTML = '<p class="empty">No matching files in this directory.</p>';
     return;
   }
   if (!q) {
-    nav.innerHTML = renderNode(buildTree(files), active, "").replace(
-      'class="tree-level"', 'class="tree"'
-    );
+    renderFileTree(files, active);
+    return;
+  }
+  nav.innerHTML = '<p class="empty">Searching…</p>';
+  try {
+    const res = await fetch("/__api/search?" + new URLSearchParams({ q }));
+    if (token !== contentSearchToken) return;
+    if (!res.ok) throw new Error("search failed");
+    const ranked = await res.json();
+    if (token !== contentSearchToken) return;
+    if (!ranked.length) {
+      nav.innerHTML = '<p class="empty">No content matches “' + escapeHtml(q) + '”.</p>';
+      return;
+    }
+    nav.innerHTML = '<ul class="flat-results content-results">' +
+      ranked.map((x) => "<li>" + linkHtml(x.path, active, {
+        showPath: true,
+        snippet: x.snippet || "",
+        line: x.line,
+      }) + "</li>").join("") +
+      "</ul>";
+  } catch (_) {
+    if (token !== contentSearchToken) return;
+    nav.innerHTML = '<p class="empty">Content search failed.</p>';
+  }
+}
+
+function scheduleContentSearch(files, active, query) {
+  if (contentSearchTimer != null) clearTimeout(contentSearchTimer);
+  const q = query.trim();
+  if (!q) {
+    contentSearchToken += 1;
+    renderFileTree(files, active);
+    return;
+  }
+  nav.innerHTML = '<p class="empty">Searching…</p>';
+  contentSearchTimer = setTimeout(() => {
+    contentSearchTimer = null;
+    renderContentSearch(files, active, query);
+  }, 150);
+}
+
+function renderNav(files, active, query = "") {
+  allFiles = files;
+  focusIndex = -1;
+  if (searchMode === "content") {
+    scheduleContentSearch(files, active, query);
+    return;
+  }
+  if (contentSearchTimer != null) {
+    clearTimeout(contentSearchTimer);
+    contentSearchTimer = null;
+  }
+  const q = query.trim();
+  if (!files.length) {
+    nav.innerHTML = '<p class="empty">No matching files in this directory.</p>';
+    return;
+  }
+  if (!q) {
+    renderFileTree(files, active);
     return;
   }
   const ranked = files
@@ -443,16 +595,158 @@ function markActive(path) {
   });
 }
 
-async function load(path) {
+function clearToc() {
+  if (tocObserver) {
+    tocObserver.disconnect();
+    tocObserver = null;
+  }
+  toc.innerHTML = "";
+  layout.classList.add("no-toc");
+  syncTocExpandButton();
+}
+
+function buildNestedToc(headings) {
+  const root = document.createElement("ol");
+  root.className = "toc-list";
+  const stack = [{ level: 0, list: root }];
+
+  for (const heading of headings) {
+    const level = Number(heading.tagName.slice(1));
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = "#" + heading.id;
+    a.textContent = heading.textContent.replace(/\s*¶\s*$/, "").trim() || heading.id;
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      heading.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.replaceState(null, "", "#" + heading.id);
+      setTocActive(heading.id);
+    });
+    li.appendChild(a);
+
+    while (stack.length > 1 && stack[stack.length - 1].level >= level) {
+      stack.pop();
+    }
+
+    const parent = stack[stack.length - 1];
+    parent.list.appendChild(li);
+
+    const nested = document.createElement("ol");
+    nested.className = "toc-list";
+    li.appendChild(nested);
+    stack.push({ level, list: nested });
+  }
+
+  root.querySelectorAll("ol").forEach((ol) => {
+    if (!ol.children.length) ol.remove();
+  });
+  return root;
+}
+
+function updateToc() {
+  clearToc();
+  if (content.classList.contains("asset-mode")) return;
+
+  const headings = [...content.querySelectorAll("h1[id], h2[id], h3[id], h4[id]")];
+  if (!headings.length) return;
+
+  layout.classList.remove("no-toc");
+  layout.classList.toggle("toc-collapsed", tocCollapsedPref);
+  syncTocExpandButton();
+  toc.appendChild(buildNestedToc(headings));
+
+  tocObserver = new IntersectionObserver(
+    (entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (visible[0]?.target?.id) setTocActive(visible[0].target.id);
+    },
+    { rootMargin: "-10% 0px -70% 0px", threshold: [0, 1] },
+  );
+  for (const heading of headings) tocObserver.observe(heading);
+  setTocActive(headings[0].id);
+  requestAnimationFrame(fitWideTables);
+}
+
+function setTocActive(id) {
+  toc.querySelectorAll("a").forEach((a) => {
+    a.classList.toggle("active", a.getAttribute("href") === "#" + id);
+  });
+}
+
+function resolveLocalTarget(href, fromPath) {
+  if (!href) return null;
+  const raw = href.trim();
+  if (
+    !raw ||
+    raw.startsWith("#") ||
+    raw.startsWith("mailto:") ||
+    raw.startsWith("tel:") ||
+    raw.startsWith("javascript:") ||
+    raw.startsWith("data:")
+  ) {
+    return null;
+  }
+  try {
+    const baseDir = dirname(fromPath);
+    const base = "https://markdown-serve.local/" + (baseDir ? encodePath(baseDir) + "/" : "");
+    const url = new URL(raw, base);
+    if (url.origin !== "https://markdown-serve.local") return null;
+    let path = decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+    if (!path || path.startsWith("__")) return null;
+    // Normalize ./ and ../ segments
+    const parts = [];
+    for (const part of path.split("/")) {
+      if (!part || part === ".") continue;
+      if (part === "..") {
+        if (parts.length) parts.pop();
+        continue;
+      }
+      parts.push(part);
+    }
+    return parts.join("/");
+  } catch (_) {
+    return null;
+  }
+}
+
+async function markBrokenLinks(fromPath) {
+  const token = ++brokenLinkToken;
+  const anchors = [...content.querySelectorAll("a[href]")];
+  await Promise.all(anchors.map(async (a) => {
+    if (a.classList.contains("headerlink")) return;
+    const target = resolveLocalTarget(a.getAttribute("href"), fromPath);
+    if (!target) return;
+    try {
+      const res = await fetch("/__api/exists/" + encodePath(target));
+      if (token !== brokenLinkToken) return;
+      if (!res.ok) return;
+      const data = await res.json();
+      if (token !== brokenLinkToken) return;
+      if (!data.exists) {
+        a.classList.add("broken-link");
+        a.title = "Missing file: " + target;
+        a.setAttribute("aria-description", "Linked file does not exist");
+      }
+    } catch (_) {
+      // Ignore network errors while checking links.
+    }
+  }));
+}
+
+async function load(path, { line = null } = {}) {
   if (!path) {
     content.classList.remove("asset-mode");
     content.innerHTML = '<p class="empty">Select a file.</p>';
+    clearToc();
     return;
   }
   const kind = fileKind(path);
   currentPath = path;
   document.title = path + " — markdown-serve";
-  history.replaceState(null, "", "/" + encodePath(path));
+  const lineQuery = line != null && line > 0 ? "?line=" + String(line) : "";
+  history.replaceState(null, "", "/" + encodePath(path) + lineQuery);
   markActive(path);
 
   if (kind === "image") {
@@ -461,6 +755,7 @@ async function load(path) {
     content.style.minWidth = "";
     content.innerHTML = '<img class="asset-preview" src="/__file/' +
       encodePath(path) + '" alt="' + escapeHtml(basename(path)) + '">';
+    clearToc();
     return;
   }
   if (kind === "pdf") {
@@ -469,6 +764,7 @@ async function load(path) {
     content.style.minWidth = "";
     content.innerHTML = '<iframe class="pdf-preview" title="' +
       escapeHtml(basename(path)) + '" src="/__file/' + encodePath(path) + '"></iframe>';
+    clearToc();
     return;
   }
 
@@ -476,6 +772,7 @@ async function load(path) {
   const res = await fetch("/__api/render/" + encodePath(path));
   if (!res.ok) {
     content.innerHTML = '<p class="empty">Failed to load ' + escapeHtml(path) + "</p>";
+    clearToc();
     return;
   }
   const data = await res.json();
@@ -486,8 +783,64 @@ async function load(path) {
   const plantumlSnapshots = snapshotPlantumlLayout();
   content.innerHTML = data.html;
   preparePlantumlPlaceholders(plantumlSnapshots);
+  updateToc();
   await renderDiagrams();
   fitWideTables();
+  await markBrokenLinks(path);
+  if (line != null && line > 0) {
+    requestAnimationFrame(() => scrollToSourceLine(data.text || "", line));
+  }
+}
+
+function lineNeedle(rawLine) {
+  return rawLine
+    .replace(/^\s*#{1,6}\s+/, "")
+    .replace(/^\s*[-*+]\s+/, "")
+    .replace(/^\s*\d+\.\s+/, "")
+    .replace(/^\s*>\s+/, "")
+    .replace(/`+/g, "")
+    .trim();
+}
+
+function scrollToSourceLine(sourceText, lineNum) {
+  content.querySelectorAll(".line-flash").forEach((el) => el.classList.remove("line-flash"));
+  const lines = sourceText.split(/\r?\n/);
+  if (lineNum < 1 || lineNum > lines.length) return;
+
+  const needle = lineNeedle(lines[lineNum - 1]);
+  let target = null;
+  if (needle.length >= 2) {
+    const needleLower = needle.toLowerCase();
+    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!node.nodeValue || !node.nodeValue.toLowerCase().includes(needleLower)) continue;
+      target = node.parentElement;
+      break;
+    }
+  }
+  if (!target) {
+    const blocks = [...content.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, pre, td, th, blockquote")];
+    if (blocks.length) {
+      const idx = Math.min(
+        blocks.length - 1,
+        Math.max(0, Math.round(((lineNum - 1) / Math.max(lines.length - 1, 1)) * (blocks.length - 1))),
+      );
+      target = blocks[idx];
+    }
+  }
+  if (!target) return;
+  target.classList.add("line-flash");
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function lineFromLocation() {
+  try {
+    const sp = new URL(location.href).searchParams.get("line");
+    if (sp && /^\d+$/.test(sp)) return Number(sp);
+  } catch (_) {}
+  const m = location.hash.match(/^#L(\d+)$/i);
+  return m ? Number(m[1]) : null;
 }
 
 window.addEventListener("resize", fitWideTables);
@@ -496,7 +849,8 @@ nav.addEventListener("click", (e) => {
   const a = e.target.closest("a.nav-link");
   if (!a) return;
   e.preventDefault();
-  load(a.dataset.path);
+  const line = a.dataset.line ? Number(a.dataset.line) : null;
+  load(a.dataset.path, { line: Number.isFinite(line) && line > 0 ? line : null });
 });
 
 finder.addEventListener("input", () => {
@@ -504,6 +858,11 @@ finder.addEventListener("input", () => {
 });
 
 finder.addEventListener("keydown", (e) => {
+  if (e.key === "Tab" && !e.altKey && !e.metaKey && !e.ctrlKey) {
+    e.preventDefault();
+    setSearchMode(searchMode === "files" ? "content" : "files");
+    return;
+  }
   if (e.key === "ArrowDown") {
     e.preventDefault();
     setFocus(focusIndex < 0 ? 0 : focusIndex + 1);
@@ -513,7 +872,11 @@ finder.addEventListener("keydown", (e) => {
   } else if (e.key === "Enter") {
     const links = visibleLinks();
     const target = focusIndex >= 0 ? links[focusIndex] : links[0];
-    if (target) { e.preventDefault(); load(target.dataset.path); }
+    if (target) {
+      e.preventDefault();
+      const line = target.dataset.line ? Number(target.dataset.line) : null;
+      load(target.dataset.path, { line: Number.isFinite(line) && line > 0 ? line : null });
+    }
   } else if (e.key === "Escape") {
     if (finder.value) {
       finder.value = "";
@@ -631,5 +994,5 @@ function connect() {
 }
 
 renderNav(initialFiles, initialPath);
-load(initialPath);
+load(initialPath, { line: lineFromLocation() });
 connect();

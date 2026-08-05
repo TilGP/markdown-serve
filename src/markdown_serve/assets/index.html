@@ -16,34 +16,66 @@
   <script src="/__assets/vendor/mermaid.min.js"></script>
 </head>
 <body>
-  <div class="layout">
-    <aside>
+  <div class="layout no-toc" id="layout">
+    <aside id="files-sidebar" class="files-sidebar" aria-label="Files">
       <div class="brand-row">
         <div class="brand"><strong>markdown</strong>-serve</div>
-        <button type="button" id="theme-toggle" aria-label="Toggle light and dark theme" title="Toggle theme">
-          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4"></circle>
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
-          </svg>
-          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"></path>
-          </svg>
-        </button>
+        <div class="brand-actions">
+          <button type="button" id="theme-toggle" aria-label="Toggle light and dark theme" title="Toggle theme">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+            </svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a7 7 0 0 0 11.5 11.5z"></path>
+            </svg>
+          </button>
+          <button type="button" id="files-collapse" class="icon-btn" aria-label="Collapse file sidebar" title="Collapse sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15 6l-6 6 6 6"></path>
+            </svg>
+          </button>
+        </div>
       </div>
       <div class="finder-wrap">
         <label class="style-picker" id="style-picker" hidden>
           <span>Code style</span>
           <select id="style-select" aria-label="Pygments style for current theme"></select>
         </label>
+        <div class="search-modes" role="tablist" aria-label="Search mode">
+          <button type="button" id="search-mode-files" class="search-mode active" role="tab" aria-selected="true" data-mode="files">Files</button>
+          <button type="button" id="search-mode-content" class="search-mode" role="tab" aria-selected="false" data-mode="content">Content</button>
+        </div>
         <input id="finder" type="search" placeholder="Search files…" autocomplete="off" spellcheck="false">
-        <div class="finder-hint"><span>fuzzy · <kbd>'</kbd> exact</span><span><kbd>/</kbd> focus</span></div>
+        <div class="finder-hint"><span>fuzzy · <kbd>'</kbd> exact</span><span><kbd>/</kbd> focus · <kbd>tab</kbd> mode</span></div>
       </div>
       <nav id="nav"></nav>
     </aside>
+    <button type="button" id="files-expand" class="files-expand" aria-label="Expand file sidebar" title="Show files" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 6l6 6-6 6"></path>
+      </svg>
+    </button>
     <main>
       <div id="status">connecting…</div>
       <article id="content"><p class="empty">Select a file.</p></article>
     </main>
+    <aside id="toc-sidebar" class="toc-sidebar" aria-label="Table of contents">
+      <div class="toc-header">
+        <div class="toc-heading">On this page</div>
+        <button type="button" id="toc-collapse" class="icon-btn" aria-label="Collapse table of contents" title="Collapse TOC">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 6l6 6-6 6"></path>
+          </svg>
+        </button>
+      </div>
+      <nav id="toc"></nav>
+    </aside>
+    <button type="button" id="toc-expand" class="toc-expand" aria-label="Expand table of contents" title="Show TOC" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M15 6l-6 6 6 6"></path>
+      </svg>
+    </button>
   </div>
   <script type="application/json" id="markdown-serve-boot">__BOOT_JSON__</script>
   <script type="module" src="/__assets/app.js"></script>

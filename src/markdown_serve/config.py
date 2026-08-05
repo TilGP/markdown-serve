@@ -1,4 +1,4 @@
-"""Persistent viewer config (theme, Pygments styles, fonts)."""
+"""Persistent viewer config (theme, Pygments styles, fonts, sidebars)."""
 
 from __future__ import annotations
 
@@ -45,6 +45,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "ui-monospace",
             "monospace",
         ],
+    },
+    "sidebars": {
+        "files_collapsed": False,
+        "toc_collapsed": False,
     },
 }
 
@@ -104,6 +108,18 @@ def _normalize(data: dict[str, Any]) -> dict[str, Any]:
         "sans": _normalize_font_list(fonts.get("sans"), cfg["fonts"]["sans"]),
         "mono": _normalize_font_list(fonts.get("mono"), cfg["fonts"]["mono"]),
     }
+
+    sidebars = data.get("sidebars") or {}
+    if not isinstance(sidebars, dict):
+        sidebars = {}
+    cfg["sidebars"] = {
+        "files_collapsed": bool(
+            sidebars.get("files_collapsed", cfg["sidebars"]["files_collapsed"])
+        ),
+        "toc_collapsed": bool(
+            sidebars.get("toc_collapsed", cfg["sidebars"]["toc_collapsed"])
+        ),
+    }
     return cfg
 
 
@@ -137,6 +153,8 @@ def update_config(patch: dict[str, Any]) -> dict[str, Any]:
         current["styles"] = {**current["styles"], **patch["styles"]}
     if "fonts" in patch and isinstance(patch["fonts"], dict):
         current["fonts"] = {**current["fonts"], **patch["fonts"]}
+    if "sidebars" in patch and isinstance(patch["sidebars"], dict):
+        current["sidebars"] = {**current["sidebars"], **patch["sidebars"]}
     return save_config(current)
 
 

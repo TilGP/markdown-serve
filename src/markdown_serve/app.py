@@ -18,6 +18,7 @@ from watchdog.observers import Observer
 from markdown_serve.config import font_stack_css, load_config, public_config, update_config
 from markdown_serve.plantuml import PlantUMLError, render_plantuml_svg
 from markdown_serve.render import pygments_css, render_markdown
+from markdown_serve.search import search_markdown
 
 MARKDOWN_SUFFIXES = {".md", ".markdown", ".mdown", ".mkd"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif"}
@@ -151,13 +152,28 @@ def create_app(root: Path) -> FastAPI:
     async def api_files() -> list[str]:
         return list_sidebar_files()
 
+    @app.get("/__api/search")
+    async def api_search(q: str = "") -> list[dict]:
+        query = q.strip()
+        if not query:
+            return []
+        md_files = [
+            f for f in list_sidebar_files() if Path(f).suffix.lower() in MARKDOWN_SUFFIXES
+        ]
+        return search_markdown(root, md_files, query)
+
+    @app.get("/__api/exists/{file_path:path}")
+    async def api_exists(file_path: str) -> dict[str, bool | str]:
+        path = resolve_under_root(file_path)
+        return {"path": file_path, "exists": path.exists()}
+
     @app.get("/__api/render/{file_path:path}")
     async def api_render(file_path: str) -> dict[str, str]:
         path = resolve_under_root(file_path)
         if not path.is_file() or path.suffix.lower() not in MARKDOWN_SUFFIXES:
             raise HTTPException(status_code=404, detail="Markdown file not found")
         text = path.read_text(encoding="utf-8")
-        return {"path": file_path, "html": render_markdown(text)}
+        return {"path": file_path, "html": render_markdown(text), "text": text}
 
     @app.post("/__api/plantuml")
     async def api_plantuml(request: Request) -> Response:
@@ -277,6 +293,7 @@ def page_shell(title: str, active: str, files: list[str]) -> str:
                 "theme": cfg["theme"],
                 "styles": cfg["styles"],
                 "fonts": cfg["fonts"],
+                "sidebars": cfg["sidebars"],
                 "available_styles": cfg["available_styles"],
             },
         },

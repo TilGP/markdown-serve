@@ -14,9 +14,12 @@ Point it at a notes tree, a docs repo, or any project with `.md` files. You get 
 
 | | |
 |---|---|
-| **Browse the tree** | Sidebar lists Markdown, images, and PDFs under the serve root. Fuzzy find with `/`, or prefix with `'` for exact match. |
+| **Browse the tree** | Collapsible left sidebar lists Markdown, images, and PDFs. Fuzzy find with `/`, or prefix with `'` for exact match. |
+| **Content search** | Switch to **Content** mode to full-text search all Markdown (same fuzzy / `'exact` rules). Hits link to `?line=N` and scroll to that line. |
+| **Table of contents** | Collapsible right sidebar lists headings on the open page (nested by level), with scroll spy. |
+| **Broken links** | Local links to missing files show in orange with a ⚠ marker. |
 | **Live preview** | Edits on disk refresh the browser over a WebSocket. Save and the page updates. |
-| **Real rendering** | Tables, syntax-highlighted code ([Pygments](https://pygments.org/)), images, linked assets, PDF iframe preview. |
+| **Real rendering** | Nested lists (2-space indent), tables, syntax-highlighted code ([Pygments](https://pygments.org/)), images, linked assets, PDF iframe preview. |
 | **Diagrams** | [`mermaid`](https://mermaid.js.org/) and [`plantuml`](https://plantuml.com/) / `puml` fences render in place — Mermaid in the browser, PlantUML via local Java. |
 | **Themes** | Light/dark toggle (persisted). **Right-click the theme button** to show a Pygments style picker for the current theme (code highlighting). |
 | **Offline-first** | UI, Mermaid, and PlantUML jar ship with the project. Works on a plane. |
@@ -49,6 +52,30 @@ Opens `http://127.0.0.1:8765` and serves the current working directory.
 | `-r`, `--root` | Directory to serve (default: CWD) |
 | `--no-open` | Don’t open a browser |
 
+## UI and search
+
+### Sidebars
+
+- **Files (left)** — Collapse with the chevron next to the theme toggle; a floating button restores it. Collapse state is stored in `config.json`.
+- **On this page (right)** — Nested heading list for the current Markdown file. Collapse with its chevron; expands again from the floating control on the right. Collapse state is stored in `config.json`. Hidden when there are no headings, or when viewing an image/PDF.
+
+### File and content search
+
+Focus the finder with `/`. Use the **Files** / **Content** tabs (or `Tab` while the finder is focused) to switch modes.
+
+| Mode | Behavior |
+|------|----------|
+| **Files** | Filters the sidebar tree by path/name. Default is fuzzy subsequence match; prefix the query with `'` for substring (exact) match. |
+| **Content** | Server-side full-text search over all Markdown under the serve root. Same fuzzy / `'exact` syntax. Results show a snippet and line badge (`L42`); opening one navigates to `/path/to/file.md?line=42` and scrolls/highlights that line in the preview. |
+
+Hints under the finder: `fuzzy · ' exact` · `/` focus · `tab` mode.
+
+Arrow keys move focus in the result list; `Enter` opens the focused hit; `Escape` clears the query (or blurs the finder).
+
+### Broken links
+
+After a page loads, relative and same-origin links are checked against the filesystem. Targets that do not exist are colored orange and get a warning mark (⚠). External URLs, `mailto:`, and heading permalinks are left alone.
+
 ## Diagrams
 
 Fenced blocks just work:
@@ -71,7 +98,7 @@ Alice -> Bob: hello
 ## Configuration
 
 On first run, `src/markdown_serve/config.json` is created with defaults if it is missing.
-It holds theme, [Pygments](https://pygments.org/) styles, and font stacks:
+It holds theme, [Pygments](https://pygments.org/) styles, font stacks, and sidebar collapse state:
 
 ```json
 {
@@ -80,11 +107,22 @@ It holds theme, [Pygments](https://pygments.org/) styles, and font stacks:
   "fonts": {
     "sans": ["Avenir Next", "Segoe UI", "system-ui", "sans-serif"],
     "mono": ["Fira Code", "ui-monospace", "monospace"]
+  },
+  "sidebars": {
+    "files_collapsed": false,
+    "toc_collapsed": false
   }
 }
 ```
 
-Left-click the sun/moon button to toggle light and dark. **Right-click it** to reveal the code-highlighting style dropdown for the active theme (any installed Pygments style). Choices are written back to this file. Fonts are config-only (no picker). The file is gitignored so local preferences stay on your machine.
+Left-click the sun/moon button to toggle light and dark. **Right-click it** to reveal the code-highlighting style dropdown for the active theme (any installed Pygments style). Collapsing either sidebar updates `sidebars` in this file. Fonts are config-only (no picker). The file is gitignored so local preferences stay on your machine.
+
+## Development
+
+```bash
+uv sync --group dev
+uv run pytest
+```
 
 ## Third-party / offline assets
 
