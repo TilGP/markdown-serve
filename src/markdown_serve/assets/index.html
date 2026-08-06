@@ -57,8 +57,20 @@
       </svg>
     </button>
     <main>
-      <div id="status">connecting…</div>
-      <article id="content"><p class="empty">Select a file.</p></article>
+      <div class="main-column">
+        <div class="main-toolbar">
+          <div id="status">connecting…</div>
+          <button type="button" id="print-page" class="print-page" hidden aria-label="Print page" title="Print">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M6 9V3h12v6"></path>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <path d="M6 14h12v7H6z"></path>
+            </svg>
+            <span>Print</span>
+          </button>
+        </div>
+        <article id="content"><p class="empty">Select a file.</p></article>
+      </div>
     </main>
     <aside id="toc-sidebar" class="toc-sidebar" aria-label="Table of contents">
       <div class="toc-header">

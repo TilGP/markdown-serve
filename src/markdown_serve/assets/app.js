@@ -8,6 +8,7 @@ const initialPath = boot.initialPath;
 const initialFiles = boot.files;
 const content = document.getElementById("content");
 const status = document.getElementById("status");
+const printPageBtn = document.getElementById("print-page");
 const nav = document.getElementById("nav");
 const toc = document.getElementById("toc");
 const layout = document.getElementById("layout");
@@ -182,6 +183,17 @@ function encodePath(path) {
 function basename(path) {
   const i = path.lastIndexOf("/");
   return i >= 0 ? path.slice(i + 1) : path;
+}
+
+function setPrintVisible(visible) {
+  if (!printPageBtn) return;
+  printPageBtn.hidden = !visible;
+}
+
+if (printPageBtn) {
+  printPageBtn.addEventListener("click", () => {
+    window.print();
+  });
 }
 
 function dirname(path) {
@@ -571,9 +583,11 @@ async function renderPlantumlDiagrams() {
 
 function fitWideTables() {
   if (content.classList.contains("asset-mode")) return;
-  content.style.width = "";
-  content.style.minWidth = "";
-  const base = Math.min(52 * 16, content.parentElement.clientWidth);
+  const column = content.parentElement;
+  if (!column) return;
+  column.style.width = "";
+  column.style.minWidth = "";
+  const base = Math.min(52 * 16, column.parentElement.clientWidth);
   let widest = 0;
   for (const table of content.querySelectorAll("table")) {
     widest = Math.max(widest, table.scrollWidth);
@@ -591,8 +605,8 @@ function fitWideTables() {
     }
   }
   if (widest <= 0) {
-    content.style.width = "min(52rem, 100%)";
-    content.style.minWidth = "min(52rem, 100%)";
+    column.style.width = "min(52rem, 100%)";
+    column.style.minWidth = "min(52rem, 100%)";
     return;
   }
   const style = getComputedStyle(content);
@@ -600,8 +614,8 @@ function fitWideTables() {
   const border = parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);
   const needed = Math.ceil(widest + pad + border);
   const width = Math.max(base, needed);
-  content.style.width = width + "px";
-  content.style.minWidth = width + "px";
+  column.style.width = width + "px";
+  column.style.minWidth = width + "px";
 }
 
 function markActive(path) {
@@ -758,6 +772,7 @@ async function load(path, { line = null } = {}) {
     content.classList.remove("asset-mode");
     content.innerHTML = '<p class="empty">Select a file.</p>';
     clearToc();
+    setPrintVisible(false);
     return;
   }
   const previousPath = currentPath;
@@ -768,11 +783,15 @@ async function load(path, { line = null } = {}) {
   const lineQuery = line != null && line > 0 ? "?line=" + String(line) : "";
   history.replaceState(null, "", "/" + encodePath(path) + lineQuery);
   markActive(path);
+  setPrintVisible(kind === "markdown");
 
   if (kind === "image") {
     content.classList.add("asset-mode");
-    content.style.width = "";
-    content.style.minWidth = "";
+    const column = content.parentElement;
+    if (column) {
+      column.style.width = "";
+      column.style.minWidth = "";
+    }
     content.innerHTML = '<img class="asset-preview" src="/__file/' +
       encodePath(path) + '" alt="' + escapeHtml(basename(path)) + '">';
     clearToc();
@@ -780,8 +799,11 @@ async function load(path, { line = null } = {}) {
   }
   if (kind === "pdf") {
     content.classList.add("asset-mode");
-    content.style.width = "";
-    content.style.minWidth = "";
+    const column = content.parentElement;
+    if (column) {
+      column.style.width = "";
+      column.style.minWidth = "";
+    }
     content.innerHTML = '<iframe class="pdf-preview" title="' +
       escapeHtml(basename(path)) + '" src="/__file/' + encodePath(path) + '"></iframe>';
     clearToc();
@@ -793,6 +815,7 @@ async function load(path, { line = null } = {}) {
   if (!res.ok) {
     content.innerHTML = '<p class="empty">Failed to load ' + escapeHtml(path) + "</p>";
     clearToc();
+    setPrintVisible(false);
     return;
   }
   const data = await res.json();
