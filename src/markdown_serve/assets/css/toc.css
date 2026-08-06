@@ -1,0 +1,50 @@
+.toc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.toc-heading {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 0.15rem;
+}
+#toc {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+#toc .toc-list {
+  list-style-type: disc;
+  margin: 0;
+  padding-left: 1.15rem;
+}
+#toc .toc-list .toc-list {
+  list-style-type: circle;
+  margin: 0.2rem 0 0.15rem;
+  padding-left: 1.05rem;
+}
+#toc .toc-list .toc-list .toc-list {
+  list-style-type: square;
+}
+#toc .toc-list .toc-list .toc-list .toc-list {
+  list-style-type: disc;
+}
+#toc li {
+  margin: 0.15rem 0;
+}
+#toc a {
+  color: var(--muted);
+  text-decoration: none;
+  border-radius: 4px;
+}
+#toc a:hover {
+  color: var(--ink);
+}
+#toc a.active {
+  color: var(--accent);
+  font-weight: 560;
+}

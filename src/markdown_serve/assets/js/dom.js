@@ -1,0 +1,15 @@
+export const content = document.getElementById("content");
+export const status = document.getElementById("status");
+export const printPageBtn = document.getElementById("print-page");
+export const nav = document.getElementById("nav");
+export const toc = document.getElementById("toc");
+export const layout = document.getElementById("layout");
+export const finder = document.getElementById("finder");
+export const themeToggle = document.getElementById("theme-toggle");
+export const filesCollapse = document.getElementById("files-collapse");
+export const filesExpand = document.getElementById("files-expand");
+export const tocCollapse = document.getElementById("toc-collapse");
+export const tocExpand = document.getElementById("toc-expand");
+export const stylePicker = document.getElementById("style-picker");
+export const styleSelect = document.getElementById("style-select");
+export const pygmentsLink = document.getElementById("pygments-css");

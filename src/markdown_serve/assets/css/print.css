@@ -1,0 +1,71 @@
+@media print {
+  html, body {
+    height: auto !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .files-sidebar,
+  .toc-sidebar,
+  .files-expand,
+  .toc-expand,
+  .main-toolbar,
+  #status,
+  .print-page {
+    display: none !important;
+  }
+  .layout,
+  .layout.files-collapsed,
+  .layout.no-toc,
+  .layout.toc-collapsed,
+  .layout.files-collapsed.no-toc,
+  .layout.files-collapsed.toc-collapsed {
+    display: block !important;
+    grid-template-columns: none !important;
+    min-height: 0 !important;
+  }
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+    min-height: 0 !important;
+    display: block !important;
+  }
+  #content {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    color: #000 !important;
+    overflow: visible !important;
+  }
+  #content a.headerlink,
+  #content a.broken-link::after {
+    display: none !important;
+  }
+  #content a {
+    color: #000 !important;
+    text-decoration: underline;
+  }
+  #content pre,
+  #content code,
+  #content th,
+  .diagram {
+    background: #f5f5f4 !important;
+    color: #000 !important;
+    border-color: #d6d3d1 !important;
+  }
+  #content h2 {
+    border-bottom-color: #d6d3d1 !important;
+  }
+  .diagram {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  #content pre,
+  #content table {
+    break-inside: auto;
+  }
+}

@@ -1,0 +1,267 @@
+main {
+  padding: 2rem clamp(1.25rem, 4vw, 3rem);
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.main-column {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(52rem, 100%);
+  min-width: min(52rem, 100%);
+}
+.main-column:has(#content.asset-mode) {
+  width: min(56rem, 100%);
+  min-width: min(56rem, 100%);
+  flex: 1;
+  min-height: 0;
+}
+.main-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+#status {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.print-page {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.3rem 0.65rem 0.3rem 0.5rem;
+  cursor: pointer;
+}
+.print-page svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  display: block;
+}
+.print-page:hover {
+  color: var(--ink);
+  background: var(--code-bg);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+.print-page:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.print-page[hidden] {
+  display: none !important;
+}
+#status.live::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #16a34a;
+  margin-right: 0.15rem;
+  vertical-align: middle;
+}
+#status.offline::before {
+  content: "";
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #b91c1c;
+  margin-right: 0.15rem;
+  vertical-align: middle;
+}
+.reconnect-btn {
+  font: inherit;
+  font-size: 0.7rem;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  cursor: pointer;
+}
+.reconnect-btn:hover {
+  background: var(--code-bg);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+.reconnect-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+#content {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+  box-shadow: 0 1px 0 rgba(28, 25, 23, 0.04);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  line-height: calc(1.2em + 2px);
+}
+#content.asset-mode {
+  padding: 0;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+}
+#content .asset-preview {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: auto;
+  padding: 1.25rem;
+}
+#content .pdf-preview {
+  border: 0;
+  width: 100%;
+  min-height: calc(100vh - 6rem);
+  flex: 1;
+  background: #525659;
+}
+#content :first-child { margin-top: 0; }
+#content :last-child { margin-bottom: 0; }
+#content.asset-mode :first-child { margin-top: auto; }
+#content.asset-mode :last-child { margin-bottom: auto; }
+#content h1, #content h2, #content h3, #content h4 {
+  font-family: var(--font-sans);
+  line-height: 1.25;
+  font-weight: 600;
+}
+#content h1 { font-size: 2rem; }
+#content h2 {
+  font-size: 1.45rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.35rem;
+  margin-top: 1.75rem;
+}
+#content a { color: var(--accent); }
+#content a.broken-link {
+  color: var(--broken);
+}
+#content a.broken-link::after {
+  content: " ⚠";
+  font-style: normal;
+}
+#content a.headerlink {
+  color: color-mix(in srgb, var(--ink) 35%, transparent);
+  text-decoration: none;
+  margin-left: 0.35em;
+  font-weight: 400;
+}
+#content a.headerlink:hover,
+#content a.headerlink:focus-visible {
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+}
+#content code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+#content pre {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  overflow: auto;
+}
+#content pre code { background: none; padding: 0; }
+#content img { max-width: 100%; height: auto; }
+#content blockquote {
+  margin-left: 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+}
+#content table {
+  border-collapse: collapse;
+  width: max-content;
+  max-width: none;
+  margin: 1rem 0;
+}
+#content th, #content td {
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.7rem;
+  text-align: left;
+  white-space: normal;
+  max-width: 80ch;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+#content th { background: var(--code-bg); }
+.diagram {
+  margin: 1.25rem 0;
+  padding: 1rem;
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: auto;
+  text-align: center;
+}
+.diagram .diagram-source { display: none; }
+.diagram img, .diagram svg { max-width: 100%; height: auto; }
+.diagram-plantuml {
+  width: max-content;
+  max-width: none;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+.diagram-plantuml svg {
+  max-width: none;
+  width: auto;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+.diagram-skeleton {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 8rem;
+  margin: 0 auto;
+  border-radius: 6px;
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--muted) 10%, var(--code-bg)) 0%,
+    color-mix(in srgb, var(--muted) 22%, var(--code-bg)) 45%,
+    color-mix(in srgb, var(--muted) 10%, var(--code-bg)) 90%
+  );
+  background-size: 200% 100%;
+  animation: diagram-skeleton-shine 1.15s linear infinite;
+}
+@keyframes diagram-skeleton-shine {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.diagram-error {
+  color: #b91c1c;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  text-align: left;
+  white-space: pre-wrap;
+}
