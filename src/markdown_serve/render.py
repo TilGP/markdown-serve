@@ -14,7 +14,6 @@ EXTENSIONS = [
     "codehilite",
     "tables",
     "toc",
-    "nl2br",
     # Replaces sane_lists; 2-space nesting matches GFM/CommonMark editors.
     "mdx_truly_sane_lists",
     "smarty",

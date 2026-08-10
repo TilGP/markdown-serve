@@ -159,6 +159,7 @@ main {
   margin-top: 1.75rem;
 }
 #content a { color: var(--accent); }
+#content p { margin: 0; }
 #content a.broken-link {
   color: var(--broken);
 }

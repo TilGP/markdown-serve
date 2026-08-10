@@ -136,7 +136,28 @@ from markdown_serve.render import render_markdown
         ),
         (
             "line one\nline two",
-            "<p>line one<br />\nline two</p>",
+            "<p>line one\nline two</p>",
+        ),
+        (
+            "para one\n\npara two",
+            "<p>para one</p>\n<p>para two</p>",
+        ),
+        (
+            dedent(
+                """\
+                - `/api` - Accepts query params and a path to the asset, then
+                  enqueues a job and returns its id
+                  TODO: document supported params.
+                """
+            ),
+            dedent(
+                """\
+                <ul>
+                <li><code>/api</code> - Accepts query params and a path to the asset, then
+                  enqueues a job and returns its id
+                  TODO: document supported params.</li>
+                </ul>"""
+            ),
         ),
     ],
     ids=[
@@ -147,7 +168,9 @@ from markdown_serve.render import render_markdown
         "sane-list-separation",
         "headers-toc",
         "table",
-        "nl2br",
+        "soft-linebreak-no-br",
+        "blank-line-paragraphs",
+        "list-soft-linebreak-no-br",
     ],
 )
 def test_render_markdown_html(markdown: str, expected: str) -> None:
