@@ -12,6 +12,7 @@ import {
   resetPlantumlCacheIfNeeded,
   snapshotPlantumlLayout,
 } from "./diagrams.js";
+import { enhanceZoomables } from "./lightbox.js";
 
 function setPrintVisible(visible) {
   if (!printPageBtn) return;
@@ -206,6 +207,7 @@ export async function load(path, { line = null } = {}) {
     }
     content.innerHTML = '<img class="asset-preview" src="/__file/' +
       encodePath(path) + '" alt="' + escapeHtml(basename(path)) + '">';
+    enhanceZoomables();
     clearToc();
     return;
   }
@@ -238,6 +240,7 @@ export async function load(path, { line = null } = {}) {
   preparePlantumlPlaceholders(plantumlSnapshots);
   updateToc();
   await renderDiagrams();
+  enhanceZoomables();
   fitWideTables();
   await markBrokenLinks(path);
   if (line != null && line > 0) {

@@ -10,7 +10,9 @@
   .toc-expand,
   .main-toolbar,
   #status,
-  .print-page {
+  .print-page,
+  .zoom-btn,
+  .lightbox {
     display: none !important;
   }
   .layout,
