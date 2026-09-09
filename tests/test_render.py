@@ -6,7 +6,7 @@ from textwrap import dedent
 
 import pytest
 
-from markdown_serve.render import render_markdown
+from markdown_serve.render import render_diagram, render_markdown
 
 
 @pytest.mark.parametrize(
@@ -201,6 +201,25 @@ def test_render_diagram_fences(fence: str, kind: str, source: str) -> None:
         assert escaped in html
     assert "DIAGRAMPLACEHOLDER" not in html
     assert "```" not in html
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_kind"),
+    [("mermaid", "mermaid"), ("plantuml", "plantuml"), ("puml", "plantuml"), ("Mermaid", "mermaid")],
+)
+def test_render_diagram_standalone(kind: str, expected_kind: str) -> None:
+    source = "\nA -> B: <hi>\n\n"
+    html = render_diagram(source, kind)
+    assert html == (
+        f'<div class="diagram diagram-{expected_kind}">'
+        '<pre class="diagram-source">A -&gt; B: &lt;hi&gt;</pre>'
+        "</div>"
+    )
+
+
+def test_render_diagram_rejects_unknown_kind() -> None:
+    with pytest.raises(ValueError):
+        render_diagram("x", "graphviz")
 
 
 def test_render_fenced_code_highlight() -> None:

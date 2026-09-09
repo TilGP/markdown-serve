@@ -1,4 +1,6 @@
 const MARKDOWN_EXT = new Set(["md", "markdown", "mdown", "mkd"]);
+const MERMAID_EXT = new Set(["mmd", "mermaid"]);
+const PLANTUML_EXT = new Set(["puml", "plantuml", "pu", "iuml", "wsd"]);
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"]);
 const PDF_EXT = new Set(["pdf"]);
 
@@ -10,9 +12,16 @@ export function extOf(path) {
 export function fileKind(path) {
   const ext = extOf(path);
   if (MARKDOWN_EXT.has(ext)) return "markdown";
+  if (MERMAID_EXT.has(ext)) return "mermaid";
+  if (PLANTUML_EXT.has(ext)) return "plantuml";
   if (PDF_EXT.has(ext)) return "pdf";
   if (IMAGE_EXT.has(ext)) return "image";
   return "other";
+}
+
+/** Kinds that are text on disk and rendered to HTML via /__api/render. */
+export function isRenderedKind(kind) {
+  return kind === "markdown" || kind === "mermaid" || kind === "plantuml";
 }
 
 export function encodePath(path) {

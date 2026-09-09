@@ -139,6 +139,15 @@ html.lightbox-open {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.lightbox-btn[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+.lightbox-btn[aria-busy="true"] {
+  cursor: progress;
+  opacity: 0.6;
+}
 .lightbox-viewport {
   position: relative;
   flex: 1;
@@ -160,11 +169,24 @@ html.lightbox-open {
   will-change: transform;
 }
 .lightbox-stage > img,
-.lightbox-stage > svg {
+.lightbox-stage > svg,
+.lightbox-stage > .lightbox-bitmap {
   display: block;
   max-width: none;
   max-height: none;
   pointer-events: none;
+}
+/* Bitmap mode: low-res base of the whole diagram + sharp detail slice on top. */
+.lightbox-bitmap {
+  position: relative;
+}
+.lightbox-bitmap > canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  max-width: none;
+  max-height: none;
 }
 .lightbox-stage > svg {
   overflow: visible;

@@ -41,20 +41,30 @@ DIAGRAM_FENCE_RE = re.compile(
 )
 
 
+def render_diagram(source: str, kind: str) -> str:
+    """Wrap raw diagram source so the browser can render it (Mermaid/PlantUML).
+
+    Also used for standalone ``.mmd`` / ``.puml`` files opened directly.
+    """
+    kind = kind.lower()
+    if kind == "puml":
+        kind = "plantuml"
+    if kind not in {"mermaid", "plantuml"}:
+        raise ValueError(f"Unknown diagram kind: {kind}")
+    body = html.escape(source.strip("\n"))
+    return (
+        f'<div class="diagram diagram-{kind}">'
+        f'<pre class="diagram-source">{body}</pre>'
+        f"</div>"
+    )
+
+
 def _extract_diagrams(text: str) -> tuple[str, dict[str, str]]:
     diagrams: dict[str, str] = {}
 
     def replace(match: re.Match[str]) -> str:
-        kind = match.group(1).lower()
-        if kind == "puml":
-            kind = "plantuml"
-        source = match.group(2).strip("\n")
         token = f"DIAGRAMPLACEHOLDER{uuid.uuid4().hex}END"
-        diagrams[token] = (
-            f'<div class="diagram diagram-{kind}">'
-            f'<pre class="diagram-source">{html.escape(source)}</pre>'
-            f"</div>"
-        )
+        diagrams[token] = render_diagram(match.group(2), match.group(1))
         return f"\n\n{token}\n\n"
 
     return DIAGRAM_FENCE_RE.sub(replace, text), diagrams

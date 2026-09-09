@@ -12,19 +12,32 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, Response
-from watchdog.events import FileSystemEvent, FileSystemEventHandler
+from watchdog.events import (
+    EVENT_TYPE_CLOSED_NO_WRITE,
+    EVENT_TYPE_OPENED,
+    FileSystemEvent,
+    FileSystemEventHandler,
+)
 from watchdog.observers import Observer
 
 from markdown_serve.config import font_stack_css, load_config, public_config, update_config
 from markdown_serve.plantuml import PlantUMLError, render_plantuml_svg
-from markdown_serve.render import pygments_css, render_markdown
+from markdown_serve.render import pygments_css, render_diagram, render_markdown
 from markdown_serve.search import search_markdown
 
 MARKDOWN_SUFFIXES = {".md", ".markdown", ".mdown", ".mkd"}
+MERMAID_SUFFIXES = {".mmd", ".mermaid"}
+PLANTUML_SUFFIXES = {".puml", ".plantuml", ".pu", ".iuml", ".wsd"}
+DIAGRAM_SUFFIXES = MERMAID_SUFFIXES | PLANTUML_SUFFIXES
+# Text files rendered via /__api/render (and covered by content search).
+TEXT_SUFFIXES = MARKDOWN_SUFFIXES | DIAGRAM_SUFFIXES
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif"}
 PDF_SUFFIXES = {".pdf"}
-SIDEBAR_SUFFIXES = MARKDOWN_SUFFIXES | IMAGE_SUFFIXES | PDF_SUFFIXES
+SIDEBAR_SUFFIXES = TEXT_SUFFIXES | IMAGE_SUFFIXES | PDF_SUFFIXES
 SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".tox", ".mypy_cache"}
+# inotify reports plain reads (our own render/search) as open/close events;
+# rebroadcasting those would make the browser reload in a loop.
+READ_ONLY_EVENT_TYPES = {EVENT_TYPE_OPENED, EVENT_TYPE_CLOSED_NO_WRITE}
 
 
 def _wants_document(accept: str) -> bool:
@@ -47,7 +60,7 @@ class _ReloadHandler(FileSystemEventHandler):
         self._queue = queue
 
     def on_any_event(self, event: FileSystemEvent) -> None:
-        if event.is_directory:
+        if event.is_directory or event.event_type in READ_ONLY_EVENT_TYPES:
             return
         src = event.src_path
         if isinstance(src, bytes):
@@ -157,10 +170,10 @@ def create_app(root: Path) -> FastAPI:
         query = q.strip()
         if not query:
             return []
-        md_files = [
-            f for f in list_sidebar_files() if Path(f).suffix.lower() in MARKDOWN_SUFFIXES
+        text_files = [
+            f for f in list_sidebar_files() if Path(f).suffix.lower() in TEXT_SUFFIXES
         ]
-        return search_markdown(root, md_files, query)
+        return search_markdown(root, text_files, query)
 
     @app.get("/__api/exists/{file_path:path}")
     async def api_exists(file_path: str) -> dict[str, bool | str]:
@@ -170,10 +183,17 @@ def create_app(root: Path) -> FastAPI:
     @app.get("/__api/render/{file_path:path}")
     async def api_render(file_path: str) -> dict[str, str]:
         path = resolve_under_root(file_path)
-        if not path.is_file() or path.suffix.lower() not in MARKDOWN_SUFFIXES:
-            raise HTTPException(status_code=404, detail="Markdown file not found")
+        suffix = path.suffix.lower()
+        if not path.is_file() or suffix not in TEXT_SUFFIXES:
+            raise HTTPException(status_code=404, detail="Renderable file not found")
         text = path.read_text(encoding="utf-8")
-        return {"path": file_path, "html": render_markdown(text), "text": text}
+        if suffix in MERMAID_SUFFIXES:
+            rendered = render_diagram(text, "mermaid")
+        elif suffix in PLANTUML_SUFFIXES:
+            rendered = render_diagram(text, "plantuml")
+        else:
+            rendered = render_markdown(text)
+        return {"path": file_path, "html": rendered, "text": text}
 
     @app.post("/__api/plantuml")
     async def api_plantuml(request: Request) -> Response:

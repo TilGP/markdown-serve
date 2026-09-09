@@ -1,7 +1,7 @@
 import { content, printPageBtn } from "./dom.js";
 import { state } from "./state.js";
 import {
-  basename, dirname, encodePath, escapeHtml, fileKind,
+  basename, dirname, encodePath, escapeHtml, fileKind, isRenderedKind,
 } from "./utils.js";
 import { markActive } from "./nav.js";
 import { clearToc, updateToc } from "./toc.js";
@@ -196,7 +196,7 @@ export async function load(path, { line = null } = {}) {
   const lineQuery = line != null && line > 0 ? "?line=" + String(line) : "";
   history.replaceState(null, "", "/" + encodePath(path) + lineQuery);
   markActive(path);
-  setPrintVisible(kind === "markdown");
+  setPrintVisible(isRenderedKind(kind));
 
   if (kind === "image") {
     content.classList.add("asset-mode");

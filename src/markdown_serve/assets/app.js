@@ -1,5 +1,5 @@
 import { initialFiles, initialPath, state } from "./js/state.js";
-import { fileKind, lineFromLocation } from "./js/utils.js";
+import { fileKind, isRenderedKind, lineFromLocation } from "./js/utils.js";
 import { initTheme } from "./js/theme.js";
 import { initLayout } from "./js/layout.js";
 import { fitWideTables } from "./js/diagrams.js";
@@ -9,7 +9,8 @@ import { connect } from "./js/live.js";
 
 initTheme({
   onThemeToggle: () => {
-    if (state.currentPath && fileKind(state.currentPath) === "markdown") {
+    // Re-render so Mermaid picks up the new theme (markdown and diagram files).
+    if (state.currentPath && isRenderedKind(fileKind(state.currentPath))) {
       load(state.currentPath, { line: lineFromLocation() });
     }
   },

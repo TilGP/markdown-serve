@@ -14,13 +14,13 @@ Point it at a notes tree, a docs repo, or any project with `.md` files. You get 
 
 | | |
 |---|---|
-| **Browse the tree** | Collapsible left sidebar lists Markdown, images, and PDFs. Fuzzy find with `/`, or prefix with `'` for exact match. |
-| **Content search** | Switch to **Content** mode to full-text search all Markdown (same fuzzy / `'exact` rules). Hits link to `?line=N` and scroll to that line. |
+| **Browse the tree** | Collapsible left sidebar lists Markdown, diagram files, images, and PDFs. Fuzzy find with `/`, or prefix with `'` for exact match. |
+| **Content search** | Switch to **Content** mode to full-text search all Markdown and diagram files (same fuzzy / `'exact` rules). Hits link to `?line=N` and scroll to that line. |
 | **Table of contents** | Collapsible right sidebar lists headings on the open page (nested by level), with scroll spy. |
 | **Broken links** | Local links to missing files show in orange with a ⚠ marker. |
 | **Live preview** | Edits on disk refresh the browser over a WebSocket. Save and the page updates. |
 | **Real rendering** | Nested lists (2-space indent), tables, syntax-highlighted code ([Pygments](https://pygments.org/)), images, linked assets, PDF iframe preview. |
-| **Diagrams** | [`mermaid`](https://mermaid.js.org/) and [`plantuml`](https://plantuml.com/) / `puml` fences render in place — Mermaid in the browser, PlantUML via local Java. |
+| **Diagrams** | [`mermaid`](https://mermaid.js.org/) and [`plantuml`](https://plantuml.com/) / `puml` fences render in place — Mermaid in the browser, PlantUML via local Java. Standalone `.mmd` / `.puml` files open directly as a rendered diagram. |
 | **Themes** | Light/dark toggle (persisted). **Right-click the theme button** to show a Pygments style picker for the current theme (code highlighting). |
 | **Offline-first** | UI, Mermaid, and PlantUML jar ship with the project. Works on a plane. |
 
@@ -94,6 +94,19 @@ Alice -> Bob: hello
 ````
 
 [Mermaid](https://mermaid.js.org/) uses the vendored browser script. [PlantUML](https://plantuml.com/) runs locally (`java -jar` on the bundled LGPL jar, or a `plantuml` binary on `PATH`).
+
+Hover a diagram or image and click the enlarge button for a fullscreen zoom/pan view. For very large diagrams, the bitmap button (or `b`) rasterizes the SVG so panning and zooming stay fast; press it again to return to crisp vector rendering.
+
+### Standalone diagram files
+
+Diagram source files show up in the sidebar and open as a single rendered diagram, with the same live reload and theme handling as Markdown:
+
+| Kind | Extensions |
+|------|------------|
+| Mermaid | `.mmd`, `.mermaid` |
+| PlantUML | `.puml`, `.plantuml`, `.pu`, `.iuml`, `.wsd` |
+
+PlantUML files without `@startuml` / `@enduml` are wrapped automatically. Content search covers these files too.
 
 ## Configuration
 
