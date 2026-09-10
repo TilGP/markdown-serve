@@ -1,5 +1,9 @@
 # markdown-serve
 
+<p align="center">
+  <img src="src/markdown_serve/assets/logo.png" alt="markdown-serve logo" width="128" />
+</p>
+
 **A local live Markdown viewer for the folder you’re working in.**
 
 Point it at a notes tree, a docs repo, or any project with `.md` files. You get a file sidebar, instant preview, and automatic reload when you save — no cloud, no CDN, no plantuml.com.

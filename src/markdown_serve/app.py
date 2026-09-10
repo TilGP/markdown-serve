@@ -281,7 +281,7 @@ def create_app(root: Path) -> FastAPI:
 
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
-_UI_ASSET_SUFFIXES = {".js", ".css", ".mjs", ".map", ".woff", ".woff2", ".ttf", ".otf"}
+_UI_ASSET_SUFFIXES = {".js", ".css", ".mjs", ".map", ".woff", ".woff2", ".ttf", ".otf", ".png"}
 
 
 def ui_asset_response(asset_path: str) -> Response:
