@@ -54,14 +54,24 @@ function linkHtml(path, active, { showPath = false, snippet = "", line = null } 
     "</a>";
 }
 
+function isAncestorOf(dirPath, path) {
+  return !!path && (path === dirPath || path.startsWith(dirPath + "/"));
+}
+
+function isDirOpen(dirPath, active) {
+  if (state.collapsedDirs.has(dirPath)) return false;
+  if (!active) return true;
+  return isAncestorOf(dirPath, active) || state.expandedDirs.has(dirPath);
+}
+
 function renderNode(node, active, prefix) {
   const dirNames = Object.keys(node.dirs).sort((a, b) => a.localeCompare(b));
   const files = [...node.files].sort((a, b) => a.name.localeCompare(b.name));
   let html = '<ul class="tree-level">';
   for (const name of dirNames) {
     const childPrefix = prefix ? prefix + "/" + name : name;
-    const open = !active || active === childPrefix || active.startsWith(childPrefix + "/");
-    html += "<li><details" + (open ? " open" : "") + ">" +
+    const open = isDirOpen(childPrefix, active);
+    html += '<li><details data-dir="' + escapeHtml(childPrefix) + '"' + (open ? " open" : "") + ">" +
       '<summary><span class="folder-name">' + escapeHtml(name) + "</span></summary>" +
       renderNode(node.dirs[name], active, childPrefix) +
       "</details></li>";
@@ -166,8 +176,12 @@ export function markActive(path) {
   nav.querySelectorAll(".nav-link").forEach((a) => {
     a.classList.toggle("active", a.dataset.path === path);
   });
-  nav.querySelectorAll("details").forEach((d) => {
-    if (d.querySelector(".nav-link.active")) d.open = true;
+  // Only reveal on real navigation, so a live-reload re-render does not undo
+  // a folder the user collapsed while it held the active file.
+  if (!path || path === state.revealedPath) return;
+  state.revealedPath = path;
+  nav.querySelectorAll("details[data-dir]").forEach((d) => {
+    if (isAncestorOf(d.dataset.dir, path)) d.open = true;
   });
 }
 
@@ -200,6 +214,18 @@ export function setSearchMode(mode) {
 export function initNav({ load } = {}) {
   document.getElementById("search-mode-files").addEventListener("click", () => setSearchMode("files"));
   document.getElementById("search-mode-content").addEventListener("click", () => setSearchMode("content"));
+
+  nav.addEventListener("toggle", (e) => {
+    const dir = e.target instanceof HTMLDetailsElement ? e.target.dataset.dir : null;
+    if (!dir) return;
+    if (e.target.open) {
+      state.expandedDirs.add(dir);
+      state.collapsedDirs.delete(dir);
+    } else {
+      state.collapsedDirs.add(dir);
+      state.expandedDirs.delete(dir);
+    }
+  }, true);
 
   nav.addEventListener("click", (e) => {
     const a = e.target.closest("a.nav-link");
