@@ -14,3 +14,8 @@ wheels/
 
 # Local viewer preferences (created on first run)
 src/markdown_serve/config.json
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/

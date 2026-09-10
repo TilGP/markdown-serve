@@ -138,7 +138,14 @@ Left-click the sun/moon button to toggle light and dark. **Right-click it** to r
 
 ```bash
 uv sync --group dev
+uv run playwright install chromium
 uv run pytest
+```
+
+Browser tests live in `tests/e2e`. They start the viewer against `tests/e2e/workspace` and include a screenshot test that writes `readme_files/combined.png` (light and dark, split diagonally):
+
+```bash
+uv run pytest tests/e2e
 ```
 
 ## Third-party / offline assets

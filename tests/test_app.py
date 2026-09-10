@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,12 @@ def _endpoint(app: Any, path: str):
     raise AssertionError(f"route not found: {path}")
 
 
+def _run(coro: Any) -> Any:
+    """Run a coroutine even if Playwright left an event loop on this thread."""
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
+
+
 @pytest.fixture
 def workspace(tmp_path: Path) -> Path:
     (tmp_path / "README.md").write_text("# Hi\n", encoding="utf-8")
@@ -31,7 +38,7 @@ def workspace(tmp_path: Path) -> Path:
 
 def test_diagram_files_listed_in_sidebar(workspace: Path) -> None:
     app = create_app(workspace)
-    files = asyncio.run(_endpoint(app, "/__api/files")())
+    files = _run(_endpoint(app, "/__api/files")())
     assert files == ["README.md", "flow.mmd", "seq.puml"]
 
 
@@ -42,7 +49,7 @@ def test_diagram_files_listed_in_sidebar(workspace: Path) -> None:
 def test_render_endpoint_wraps_diagram_files(workspace: Path, name: str, kind: str) -> None:
     app = create_app(workspace)
     render = _endpoint(app, "/__api/render/{file_path:path}")
-    data = asyncio.run(render(name))
+    data = _run(render(name))
     assert data["path"] == name
     assert data["html"].startswith(f'<div class="diagram diagram-{kind}">')
     assert '<pre class="diagram-source">' in data["html"]
@@ -52,7 +59,7 @@ def test_render_endpoint_wraps_diagram_files(workspace: Path, name: str, kind: s
 def test_render_endpoint_still_renders_markdown(workspace: Path) -> None:
     app = create_app(workspace)
     render = _endpoint(app, "/__api/render/{file_path:path}")
-    data = asyncio.run(render("README.md"))
+    data = _run(render("README.md"))
     assert "<h1" in data["html"]
     assert "diagram-source" not in data["html"]
 
@@ -61,12 +68,12 @@ def test_render_endpoint_rejects_non_text_files(workspace: Path) -> None:
     app = create_app(workspace)
     render = _endpoint(app, "/__api/render/{file_path:path}")
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(render("notes.txt"))
+        _run(render("notes.txt"))
     assert exc.value.status_code == 404
 
 
 def test_search_includes_diagram_files(workspace: Path) -> None:
     app = create_app(workspace)
     search = _endpoint(app, "/__api/search")
-    hits = asyncio.run(search(q="'flowchart"))
+    hits = _run(search(q="'flowchart"))
     assert [h["path"] for h in hits] == ["flow.mmd"]
