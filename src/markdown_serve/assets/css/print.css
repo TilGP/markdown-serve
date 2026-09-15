@@ -43,6 +43,9 @@
     color: #000 !important;
     overflow: visible !important;
   }
+  #content > * {
+    max-width: none !important;
+  }
   #content a.headerlink,
   #content a.broken-link::after {
     display: none !important;

@@ -7,14 +7,15 @@
   <link rel="icon" type="image/png" href="/__assets/favicon.png">
   <link rel="apple-touch-icon" href="/__assets/logo.png">
   <script src="/__assets/theme-boot.js"></script>
-  <style id="font-config">
+  <link rel="stylesheet" href="/__assets/app.css">
+  <link id="pygments-css" rel="stylesheet" href="/__assets/pygments.css">
+  <!-- After app.css so configured values override the stylesheet defaults. -->
+  <style id="config-css">
     :root {
       --font-sans: __FONT_SANS__;
       --font-mono: __FONT_MONO__;
-    }
+__WRAP_CSS__    }
   </style>
-  <link rel="stylesheet" href="/__assets/app.css">
-  <link id="pygments-css" rel="stylesheet" href="/__assets/pygments.css">
   <script src="/__assets/vendor/mermaid.min.js"></script>
 </head>
 <body>
@@ -40,10 +41,34 @@
         </div>
       </div>
       <div class="finder-wrap">
-        <label class="style-picker" id="style-picker" hidden>
-          <span>Code style</span>
-          <select id="style-select" aria-label="Pygments style for current theme"></select>
-        </label>
+        <div class="style-picker" id="style-picker" hidden>
+          <label class="picker-field">
+            <span>Code style</span>
+            <select id="style-select" aria-label="Pygments style for current theme"></select>
+          </label>
+          <div class="picker-field">
+            <span>Text</span>
+            <div class="wrap-controls">
+              <label title="Wrap text at the line length below. Off: text fills the panel.">
+                <input type="checkbox" id="text-wrap"> wrap
+              </label>
+              <label title="Line length in characters">
+                <input type="number" id="text-width" min="20" max="300" step="1" aria-label="Text line length in characters"> ch
+              </label>
+            </div>
+          </div>
+          <div class="picker-field">
+            <span>Tables</span>
+            <div class="wrap-controls">
+              <label title="Wrap table cells at the line length below. Off: cells never wrap.">
+                <input type="checkbox" id="table-wrap"> wrap
+              </label>
+              <label title="Cell line length in characters">
+                <input type="number" id="table-width" min="20" max="300" step="1" aria-label="Table cell line length in characters"> ch
+              </label>
+            </div>
+          </div>
+        </div>
         <div class="search-modes" role="tablist" aria-label="Search mode">
           <button type="button" id="search-mode-files" class="search-mode active" role="tab" aria-selected="true" data-mode="files">Files</button>
           <button type="button" id="search-mode-content" class="search-mode" role="tab" aria-selected="false" data-mode="content">Content</button>

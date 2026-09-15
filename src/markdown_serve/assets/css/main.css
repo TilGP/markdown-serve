@@ -1,4 +1,7 @@
 main {
+  --content-pad: clamp(1.25rem, 3vw, 2.25rem);
+  /* Text column plus #content padding and border; fitWideTables() widens beyond this. */
+  --column-width: calc(var(--text-width) + 2 * var(--content-pad) + 2px);
   padding: 2rem clamp(1.25rem, 4vw, 3rem);
   min-width: 0;
   max-width: 100%;
@@ -11,8 +14,8 @@ main {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: min(52rem, 100%);
-  min-width: min(52rem, 100%);
+  width: min(var(--column-width), 100%);
+  min-width: min(var(--column-width), 100%);
 }
 .main-column:has(#content.asset-mode) {
   width: min(56rem, 100%);
@@ -115,12 +118,16 @@ main {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: clamp(1.25rem, 3vw, 2.25rem);
+  padding: var(--content-pad);
   box-shadow: 0 1px 0 rgba(28, 25, 23, 0.04);
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
   line-height: calc(1.2em + 2px);
+}
+/* Keep prose at the configured line length even when the panel is widened for tables/diagrams. */
+#content:not(.asset-mode) > :not(table):not(.diagram) {
+  max-width: var(--text-max-width);
 }
 #content.asset-mode {
   padding: 0;
@@ -209,8 +216,8 @@ main {
   border: 1px solid var(--line);
   padding: 0.45rem 0.7rem;
   text-align: left;
-  white-space: normal;
-  max-width: 80ch;
+  white-space: var(--table-cell-white-space);
+  max-width: var(--table-cell-max-width);
   overflow-wrap: break-word;
   word-wrap: break-word;
 }

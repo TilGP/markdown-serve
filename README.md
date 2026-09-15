@@ -25,10 +25,10 @@ Point it at a notes tree, a docs repo, or any project with `.md` files. You get 
 | **Live preview** | Edits on disk refresh the browser over a WebSocket. Save and the page updates. |
 | **Real rendering** | Nested lists (2-space indent), tables, syntax-highlighted code ([Pygments](https://pygments.org/)), images, linked assets, PDF iframe preview. |
 | **Diagrams** | [`mermaid`](https://mermaid.js.org/) and [`plantuml`](https://plantuml.com/) / `puml` fences render in place — Mermaid in the browser, PlantUML via local Java. Standalone `.mmd` / `.puml` files open directly as a rendered diagram. |
-| **Themes** | Light/dark toggle (persisted). **Right-click the theme button** to show a Pygments style picker for the current theme (code highlighting). |
+| **Themes** | Light/dark toggle (persisted). **Right-click the theme button** to show a Pygments style picker for the current theme (code highlighting) plus line-length / wrap settings for text and tables. |
 | **Offline-first** | UI, Mermaid, and PlantUML jar ship with the project. Works on a plane. |
 
-Wide tables and PlantUML SVGs expand the content panel instead of getting squashed.
+Wide tables and PlantUML SVGs expand the content panel instead of getting squashed; paragraphs keep wrapping at the configured line length.
 
 ## Quick start
 
@@ -115,7 +115,7 @@ PlantUML files without `@startuml` / `@enduml` are wrapped automatically. Conten
 ## Configuration
 
 On first run, `src/markdown_serve/config.json` is created with defaults if it is missing.
-It holds theme, [Pygments](https://pygments.org/) styles, font stacks, and sidebar collapse state:
+It holds theme, [Pygments](https://pygments.org/) styles, font stacks, sidebar collapse state, and wrapping:
 
 ```json
 {
@@ -128,11 +128,13 @@ It holds theme, [Pygments](https://pygments.org/) styles, font stacks, and sideb
   "sidebars": {
     "files_collapsed": false,
     "toc_collapsed": false
-  }
+  },
+  "text": { "wrap": true, "width": 90 },
+  "tables": { "wrap": true, "width": 80 }
 }
 ```
 
-Left-click the sun/moon button to toggle light and dark. **Right-click it** to reveal the code-highlighting style dropdown for the active theme (any installed Pygments style). Collapsing either sidebar updates `sidebars` in this file. Fonts are config-only (no picker). The file is gitignored so local preferences stay on your machine.
+Left-click the sun/moon button to toggle light and dark. **Right-click it** to reveal the settings panel: the code-highlighting style dropdown for the active theme (any installed Pygments style), and wrap / line-length controls for text and tables. `width` is in characters (`ch`, 20–300). With `text.wrap` off, paragraphs fill the whole panel (including when it is widened for a table); with `tables.wrap` off, cells never wrap and the panel grows to fit. Collapsing either sidebar updates `sidebars` in this file. Fonts are config-only (no picker). The file is gitignored so local preferences stay on your machine.
 
 ## Development
 

@@ -148,9 +148,10 @@ export function fitWideTables() {
   if (content.classList.contains("asset-mode")) return;
   const column = content.parentElement;
   if (!column) return;
+  // Reset to the CSS width (derived from --text-width) and measure it as the floor.
   column.style.width = "";
   column.style.minWidth = "";
-  const base = Math.min(52 * 16, column.parentElement.clientWidth);
+  const base = column.getBoundingClientRect().width;
   let widest = 0;
   for (const table of content.querySelectorAll("table")) {
     widest = Math.max(widest, table.scrollWidth);
@@ -167,11 +168,7 @@ export function fitWideTables() {
       widest = Math.max(widest, natural);
     }
   }
-  if (widest <= 0) {
-    column.style.width = "min(52rem, 100%)";
-    column.style.minWidth = "min(52rem, 100%)";
-    return;
-  }
+  if (widest <= 0) return;
   const style = getComputedStyle(content);
   const pad = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
   const border = parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth);

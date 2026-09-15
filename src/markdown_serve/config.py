@@ -50,7 +50,13 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "files_collapsed": False,
         "toc_collapsed": False,
     },
+    # Line length in `ch`; wrap=False lets text fill the panel / table cells never wrap.
+    "text": {"wrap": True, "width": 90},
+    "tables": {"wrap": True, "width": 80},
 }
+
+MIN_LINE_WIDTH = 20
+MAX_LINE_WIDTH = 300
 
 _lock = threading.Lock()
 
@@ -83,6 +89,33 @@ def font_stack_css(families: list[str]) -> str:
         else:
             parts.append(json.dumps(family))
     return ", ".join(parts)
+
+
+def _normalize_wrap(value: Any, fallback: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        value = {}
+    try:
+        width = int(value.get("width", fallback["width"]))
+    except (TypeError, ValueError):
+        width = fallback["width"]
+    width = min(max(width, MIN_LINE_WIDTH), MAX_LINE_WIDTH)
+    return {"wrap": bool(value.get("wrap", fallback["wrap"])), "width": width}
+
+
+def wrap_css_vars(cfg: dict[str, Any]) -> str:
+    """CSS custom property declarations for text / table wrapping (mirrored in wrap.js)."""
+    text, tables = cfg["text"], cfg["tables"]
+    text_ch = f"{text['width']}ch"
+    table_ch = f"{tables['width']}ch"
+    return "".join(
+        f"      {name}: {value};\n"
+        for name, value in (
+            ("--text-width", text_ch),
+            ("--text-max-width", text_ch if text["wrap"] else "none"),
+            ("--table-cell-max-width", table_ch if tables["wrap"] else "none"),
+            ("--table-cell-white-space", "normal" if tables["wrap"] else "nowrap"),
+        )
+    )
 
 
 def _normalize(data: dict[str, Any]) -> dict[str, Any]:
@@ -120,6 +153,9 @@ def _normalize(data: dict[str, Any]) -> dict[str, Any]:
             sidebars.get("toc_collapsed", cfg["sidebars"]["toc_collapsed"])
         ),
     }
+
+    cfg["text"] = _normalize_wrap(data.get("text"), cfg["text"])
+    cfg["tables"] = _normalize_wrap(data.get("tables"), cfg["tables"])
     return cfg
 
 
@@ -155,6 +191,9 @@ def update_config(patch: dict[str, Any]) -> dict[str, Any]:
         current["fonts"] = {**current["fonts"], **patch["fonts"]}
     if "sidebars" in patch and isinstance(patch["sidebars"], dict):
         current["sidebars"] = {**current["sidebars"], **patch["sidebars"]}
+    for key in ("text", "tables"):
+        if key in patch and isinstance(patch[key], dict):
+            current[key] = {**current[key], **patch[key]}
     return save_config(current)
 
 

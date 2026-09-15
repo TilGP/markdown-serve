@@ -12,6 +12,11 @@
   --broken: #ea580c;
   --font-sans: "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --font-mono: "FiraCode Nerd Font", "FiraCode Nerd Font Mono", "Fira Code", ui-monospace, monospace;
+  /* Wrapping defaults; overridden by the server-injected #config-css block and wrap.js. */
+  --text-width: 90ch;
+  --text-max-width: 90ch;
+  --table-cell-max-width: 80ch;
+  --table-cell-white-space: normal;
 }
 html[data-theme="dark"] {
   --bg: #141210;

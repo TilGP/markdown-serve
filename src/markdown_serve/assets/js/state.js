@@ -22,5 +22,7 @@ export const state = {
     styles: { light: "default", dark: "nord" },
     available_styles: ["default", "nord"],
     sidebars: { files_collapsed: false, toc_collapsed: false },
+    text: { wrap: true, width: 90 },
+    tables: { wrap: true, width: 80 },
   },
 };

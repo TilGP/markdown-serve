@@ -20,7 +20,13 @@ from watchdog.events import (
 )
 from watchdog.observers import Observer
 
-from markdown_serve.config import font_stack_css, load_config, public_config, update_config
+from markdown_serve.config import (
+    font_stack_css,
+    load_config,
+    public_config,
+    update_config,
+    wrap_css_vars,
+)
 from markdown_serve.plantuml import PlantUMLError, render_plantuml_svg
 from markdown_serve.render import pygments_css, render_diagram, render_markdown
 from markdown_serve.search import search_markdown
@@ -314,6 +320,8 @@ def page_shell(title: str, active: str, files: list[str]) -> str:
                 "styles": cfg["styles"],
                 "fonts": cfg["fonts"],
                 "sidebars": cfg["sidebars"],
+                "text": cfg["text"],
+                "tables": cfg["tables"],
                 "available_styles": cfg["available_styles"],
             },
         },
@@ -326,5 +334,6 @@ def page_shell(title: str, active: str, files: list[str]) -> str:
         .replace("__THEME__", html.escape(cfg["theme"]))
         .replace("__FONT_SANS__", font_stack_css(cfg["fonts"]["sans"]))
         .replace("__FONT_MONO__", font_stack_css(cfg["fonts"]["mono"]))
+        .replace("__WRAP_CSS__", wrap_css_vars(cfg))
         .replace("__BOOT_JSON__", boot)
     )

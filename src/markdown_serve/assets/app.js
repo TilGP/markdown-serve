@@ -2,6 +2,7 @@ import { initialFiles, initialPath, state } from "./js/state.js";
 import { fileKind, isRenderedKind, lineFromLocation } from "./js/utils.js";
 import { initTheme } from "./js/theme.js";
 import { initLayout } from "./js/layout.js";
+import { initWrap } from "./js/wrap.js";
 import { fitWideTables } from "./js/diagrams.js";
 import { initNav, renderNav } from "./js/nav.js";
 import { initPrint, load } from "./js/content.js";
@@ -16,6 +17,7 @@ initTheme({
   },
 });
 initLayout();
+initWrap();
 initPrint();
 initNav({ load });
 
