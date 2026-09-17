@@ -222,6 +222,49 @@ main {
   word-wrap: break-word;
 }
 #content th { background: var(--code-bg); }
+.csv-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.csv-table th.sortable:hover { color: var(--accent); }
+.csv-table th.sortable::after {
+  content: "";
+  display: inline-block;
+  width: 1em;
+}
+.csv-table th.sort-asc::after { content: " ▲"; }
+.csv-table th.sort-desc::after { content: " ▼"; }
+.csv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.csv-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.csv-toolbar input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  outline: none;
+}
+.csv-toolbar input[type="text"] { width: 3rem; }
+.csv-toolbar input[type="number"] { width: 4.5rem; }
+.csv-toolbar input:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 .diagram {
   margin: 1.25rem 0;
   padding: 1rem;

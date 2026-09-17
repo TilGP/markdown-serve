@@ -13,6 +13,49 @@ import {
   snapshotPlantumlLayout,
 } from "./diagrams.js";
 import { enhanceZoomables } from "./lightbox.js";
+import { renderCsvTable } from "./csv.js";
+
+// Shared across files opened in a session so a delimiter/skip/sort choice sticks.
+const csvSettings = { delimiter: ",", headerSkip: 0, footerSkip: 0, sortCol: null, sortDir: 1 };
+
+function loadCsv(text) {
+  content.innerHTML =
+    '<div class="csv-toolbar">' +
+    '<label>Delimiter <input type="text" id="csv-delimiter" maxlength="4"></label>' +
+    '<label>Skip header lines <input type="number" id="csv-header-skip" min="0" step="1"></label>' +
+    '<label>Skip footer lines <input type="number" id="csv-footer-skip" min="0" step="1"></label>' +
+    "</div>" +
+    '<div id="csv-table-wrap"></div>';
+  const delimiterInput = content.querySelector("#csv-delimiter");
+  const headerInput = content.querySelector("#csv-header-skip");
+  const footerInput = content.querySelector("#csv-footer-skip");
+  const tableWrap = content.querySelector("#csv-table-wrap");
+  delimiterInput.value = csvSettings.delimiter;
+  headerInput.value = String(csvSettings.headerSkip);
+  footerInput.value = String(csvSettings.footerSkip);
+  const update = () => {
+    csvSettings.delimiter = delimiterInput.value || ",";
+    csvSettings.headerSkip = Math.max(0, Number(headerInput.value) || 0);
+    csvSettings.footerSkip = Math.max(0, Number(footerInput.value) || 0);
+    tableWrap.innerHTML = renderCsvTable(text, csvSettings);
+    fitWideTables();
+  };
+  delimiterInput.addEventListener("input", () => {
+    csvSettings.sortCol = null;
+    update();
+  });
+  headerInput.addEventListener("input", update);
+  footerInput.addEventListener("input", update);
+  tableWrap.addEventListener("click", (e) => {
+    const th = e.target.closest("th[data-col]");
+    if (!th) return;
+    const col = Number(th.dataset.col);
+    csvSettings.sortDir = csvSettings.sortCol === col ? -csvSettings.sortDir : 1;
+    csvSettings.sortCol = col;
+    update();
+  });
+  update();
+}
 
 function setPrintVisible(visible) {
   if (!printPageBtn) return;
@@ -220,6 +263,14 @@ export async function load(path, { line = null } = {}) {
     }
     content.innerHTML = '<iframe class="pdf-preview" title="' +
       escapeHtml(basename(path)) + '" src="/__file/' + encodePath(path) + '"></iframe>';
+    clearToc();
+    return;
+  }
+  if (kind === "csv") {
+    content.classList.remove("asset-mode");
+    const res = await fetch("/__file/" + encodePath(path));
+    const text = res.ok ? await res.text() : "";
+    loadCsv(text);
     clearToc();
     return;
   }

@@ -3,6 +3,7 @@ const MERMAID_EXT = new Set(["mmd", "mermaid"]);
 const PLANTUML_EXT = new Set(["puml", "plantuml", "pu", "iuml", "wsd"]);
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"]);
 const PDF_EXT = new Set(["pdf"]);
+const CSV_EXT = new Set(["csv", "tsv"]);
 
 export function extOf(path) {
   const i = path.lastIndexOf(".");
@@ -16,12 +17,13 @@ export function fileKind(path) {
   if (PLANTUML_EXT.has(ext)) return "plantuml";
   if (PDF_EXT.has(ext)) return "pdf";
   if (IMAGE_EXT.has(ext)) return "image";
+  if (CSV_EXT.has(ext)) return "csv";
   return "other";
 }
 
-/** Kinds that are text on disk and rendered to HTML via /__api/render. */
+/** Kinds that render as a full HTML document worth printing. */
 export function isRenderedKind(kind) {
-  return kind === "markdown" || kind === "mermaid" || kind === "plantuml";
+  return kind === "markdown" || kind === "mermaid" || kind === "plantuml" || kind === "csv";
 }
 
 export function encodePath(path) {

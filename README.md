@@ -25,6 +25,7 @@ Point it at a notes tree, a docs repo, or any project with `.md` files. You get 
 | **Live preview** | Edits on disk refresh the browser over a WebSocket. Save and the page updates. |
 | **Real rendering** | Nested lists (2-space indent), tables, syntax-highlighted code ([Pygments](https://pygments.org/)), images, linked assets, PDF iframe preview. |
 | **Diagrams** | [`mermaid`](https://mermaid.js.org/) and [`plantuml`](https://plantuml.com/) / `puml` fences render in place — Mermaid in the browser, PlantUML via local Java. Standalone `.mmd` / `.puml` files open directly as a rendered diagram. |
+| **CSV / TSV** | `.csv` / `.tsv` files open as a table with controls for delimiter, header lines to skip, and footer lines to skip. |
 | **Themes** | Light/dark toggle (persisted). **Right-click the theme button** to show a Pygments style picker for the current theme (code highlighting) plus line-length / wrap settings for text and tables. |
 | **Offline-first** | UI, Mermaid, and PlantUML jar ship with the project. Works on a plane. |
 

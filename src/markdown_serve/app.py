@@ -39,7 +39,8 @@ DIAGRAM_SUFFIXES = MERMAID_SUFFIXES | PLANTUML_SUFFIXES
 TEXT_SUFFIXES = MARKDOWN_SUFFIXES | DIAGRAM_SUFFIXES
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif"}
 PDF_SUFFIXES = {".pdf"}
-SIDEBAR_SUFFIXES = TEXT_SUFFIXES | IMAGE_SUFFIXES | PDF_SUFFIXES
+CSV_SUFFIXES = {".csv", ".tsv"}
+SIDEBAR_SUFFIXES = TEXT_SUFFIXES | IMAGE_SUFFIXES | PDF_SUFFIXES | CSV_SUFFIXES
 SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".tox", ".mypy_cache"}
 # inotify reports plain reads (our own render/search) as open/close events;
 # rebroadcasting those would make the browser reload in a loop.
