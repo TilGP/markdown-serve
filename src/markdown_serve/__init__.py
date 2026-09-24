@@ -3,12 +3,32 @@
 from __future__ import annotations
 
 import argparse
+import os
 import socket
+import subprocess
 from pathlib import Path
 
 import uvicorn
 
 from markdown_serve.app import create_app
+
+
+def _set_tmux_window_title(title: str) -> None:
+    """Rename the current tmux window, if running inside tmux.
+
+    rename-window also turns off automatic-rename for the window, so tmux
+    stops overwriting the name with the foreground command.
+    """
+    if not os.getenv("TMUX"):
+        return
+    subprocess.run(["tmux", "rename-window", title], check=False)
+
+
+def _reset_tmux_window_title() -> None:
+    """Hand the window name back to tmux's automatic renaming."""
+    if not os.getenv("TMUX"):
+        return
+    subprocess.run(["tmux", "set-window-option", "automatic-rename", "on"], check=False)
 
 
 def _find_free_port(host: str, preferred: int) -> int:
@@ -71,7 +91,11 @@ def main() -> None:
 
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
 
-    uvicorn.run(app, host=args.host, port=port, log_level="warning")
+    _set_tmux_window_title(f"markdown-serve: {root.name}")
+    try:
+        uvicorn.run(app, host=args.host, port=port, log_level="warning")
+    finally:
+        _reset_tmux_window_title()
 
 
 if __name__ == "__main__":
