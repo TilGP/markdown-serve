@@ -177,6 +177,7 @@ For a tree like reda-engine, ignore vendored code and CMake build directories:
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/TilGP/markdown-serve/main/markdown-serve.schema.json",
   "ignore": ["third-party/**", "cmake-build-*/**"],
   "codedoc": {
     "cache_dir": ".cache/markdown-serve",
@@ -187,7 +188,16 @@ For a tree like reda-engine, ignore vendored code and CMake build directories:
 }
 ```
 
+`$schema` points at `markdown-serve.schema.json`, which describes each key. Editors that honor `$schema` use it for completion and warnings.
+
 Those two ignore patterns are the default when the file is missing. `jobs` null uses one process per CPU. `libclang` null uses the search order above.
+
+`markdown-serve init` writes this file with the defaults. When the file already exists it prints the missing keys and their default values and adds them only after a `y`. Every value already in the file is kept, and unknown keys are left alone. Note that a written `codedoc.languages` list is treated as explicit, so a language without source files is no longer dropped automatically. Remove the key to get the auto-detection back.
+
+```bash
+markdown-serve init                  # .markdown-serve.json in the cwd
+markdown-serve init -r /path/to/project
+```
 
 ### Build
 

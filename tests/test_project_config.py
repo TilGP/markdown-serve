@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+import pytest
+
+from markdown_serve import main
 from markdown_serve.codedoc.registry import active_languages, tools_status
 from markdown_serve.project_config import (
     DEFAULT_PROJECT_CONFIG,
+    PROJECT_CONFIG_NAME,
+    PROJECT_CONFIG_SCHEMA,
+    default_project_config_template,
     load_project_config,
     make_ignore,
+    write_project_config,
 )
 
 
@@ -80,3 +88,109 @@ def test_default_languages_follow_the_files_in_the_tree(tmp_path: Path) -> None:
     )
     forced = load_project_config(tmp_path)
     assert active_languages(tmp_path, forced) == ["cpp"]
+
+
+def test_write_creates_defaults_without_internal_keys(tmp_path: Path) -> None:
+    path, added, created = write_project_config(tmp_path)
+    assert created
+    assert path == tmp_path / PROJECT_CONFIG_NAME
+    assert added == ["$schema", "ignore", "codedoc"]
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert written == default_project_config_template()
+    assert "languages_explicit" not in written["codedoc"]
+    assert written["ignore"] == DEFAULT_PROJECT_CONFIG["ignore"]
+    assert written["codedoc"]["cpp"] == DEFAULT_PROJECT_CONFIG["codedoc"]["cpp"]
+    assert path.read_text(encoding="utf-8").endswith("}\n")
+
+
+def test_write_fills_missing_keys_and_keeps_existing(tmp_path: Path) -> None:
+    path = tmp_path / PROJECT_CONFIG_NAME
+    path.write_text(
+        '{"ignore": ["vendor/**"], "codedoc": {"jobs": 2, "cpp": {"libclang": "/opt/x.so"}}, "extra": 1}\n',
+        encoding="utf-8",
+    )
+    _, added, created = write_project_config(tmp_path)
+    assert not created
+    assert added == ["$schema", "codedoc.cache_dir", "codedoc.languages", "codedoc.cpp.compile_commands"]
+    written = json.loads(path.read_text(encoding="utf-8"))
+    assert written["ignore"] == ["vendor/**"]
+    assert written["codedoc"]["jobs"] == 2
+    assert written["codedoc"]["cpp"] == {"libclang": "/opt/x.so", "compile_commands": "compile_commands.json"}
+    assert written["codedoc"]["cache_dir"] == ".cache/markdown-serve"
+    assert written["codedoc"]["languages"] == ["cpp", "python"]
+    assert written["extra"] == 1
+
+    # Second run: nothing to add, file left untouched.
+    before = path.read_text(encoding="utf-8")
+    _, added, _ = write_project_config(tmp_path)
+    assert added == []
+    assert path.read_text(encoding="utf-8") == before
+
+
+def test_write_refuses_to_clobber_bad_json(tmp_path: Path) -> None:
+    path = tmp_path / PROJECT_CONFIG_NAME
+    path.write_text("{", encoding="utf-8")
+    with pytest.raises(ValueError):
+        write_project_config(tmp_path)
+    assert path.read_text(encoding="utf-8") == "{"
+
+    path.write_text("[1, 2]", encoding="utf-8")
+    with pytest.raises(ValueError, match="expected a JSON object"):
+        write_project_config(tmp_path)
+    assert path.read_text(encoding="utf-8") == "[1, 2]"
+
+
+def test_schema_documents_every_template_key() -> None:
+    schema = json.loads(
+        (Path(__file__).parents[1] / "markdown-serve.schema.json").read_text(encoding="utf-8")
+    )
+    assert schema["$id"] == PROJECT_CONFIG_SCHEMA
+
+    def check(node: dict, props: dict) -> None:
+        for key, value in node.items():
+            assert key in props
+            assert props[key].get("description")
+            if isinstance(value, dict):
+                check(value, props[key]["properties"])
+
+    check(default_project_config_template(), schema["properties"])
+
+
+def test_init_cli(tmp_path: Path, capsys, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    def fail(_prompt: str = "") -> str:
+        raise AssertionError("prompted")
+
+    monkeypatch.setattr("builtins.input", fail)
+    main(["init"])
+    assert (tmp_path / PROJECT_CONFIG_NAME).is_file()
+    assert "Wrote" in capsys.readouterr().out
+
+    main(["init"])
+    assert "already has every key" in capsys.readouterr().out
+
+    other = tmp_path / "other"
+    other.mkdir()
+    original = '{"codedoc": {}}\n'
+    (other / PROJECT_CONFIG_NAME).write_text(original, encoding="utf-8")
+    monkeypatch.setattr("builtins.input", lambda _prompt: "n")
+    main(["init", "--root", str(other)])
+    declined = capsys.readouterr().out
+    assert "Will add to" in declined
+    assert '"ignore"' in declined
+    assert ".cache/markdown-serve" in declined
+    assert "unchanged" in declined
+    assert (other / PROJECT_CONFIG_NAME).read_text(encoding="utf-8") == original
+
+    monkeypatch.setattr("builtins.input", lambda _prompt: "y")
+    main(["init", "--root", str(other)])
+    out = capsys.readouterr().out
+    assert "Updated" in out and "ignore" in out and "codedoc.cache_dir" in out
+    assert json.loads((other / PROJECT_CONFIG_NAME).read_text(encoding="utf-8"))["ignore"]
+
+    (other / PROJECT_CONFIG_NAME).write_text("{", encoding="utf-8")
+    with pytest.raises(SystemExit) as exc:
+        main(["init", "-r", str(other)])
+    assert exc.value.code == 1
+    assert "error:" in capsys.readouterr().err

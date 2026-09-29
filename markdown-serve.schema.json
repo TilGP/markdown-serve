@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/TilGP/markdown-serve/main/markdown-serve.schema.json",
+  "title": "markdown-serve project config",
+  "description": "Per-project settings in .markdown-serve.json, at the directory passed to markdown-serve. A missing file, or a missing key, uses the default shown on each property. Unknown keys are ignored when the file is loaded.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Location of this schema, so editors can validate and explain the file. markdown-serve init writes the URL of markdown-serve.schema.json."
+    },
+    "ignore": {
+      "type": "array",
+      "description": "Root-relative paths left out of the code-documentation cache and out of the scan that decides which languages are present. `*` matches one path segment, `**` matches across segments (`**/` also matches zero segments). Prefix an entry with `re:` to use a regular expression, which is searched rather than anchored. The cache directory is always ignored. The language scan also skips dot-directories and .git, .venv, node_modules, __pycache__, .tox, .mypy_cache, and .cache.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "default": ["third-party/**", "cmake-build-*/**"]
+    },
+    "codedoc": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Code-documentation cache. The viewer runs without it; build it with `markdown-serve build-cache`.",
+      "properties": {
+        "cache_dir": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Project-relative directory where generated markdown is written. Leading and trailing slashes are stripped. Pages are still opened at the source path, not under this directory. Add the directory to .gitignore.",
+          "default": ".cache/markdown-serve"
+        },
+        "languages": {
+          "type": "array",
+          "description": "Languages to document. `cpp` uses libclang and compile_commands.json. `python` uses the stdlib ast module and needs nothing else. A non-empty list is explicit: each entry is kept even when the tree has no source files for it, and a missing tool is reported. Omit this key to use cpp and python and drop a language that has no source files.",
+          "items": {
+            "type": "string",
+            "enum": ["cpp", "python"]
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": ["cpp", "python"]
+        },
+        "jobs": {
+          "description": "How many processes parse source files in parallel. null uses one process per CPU. Any other value is ignored and a warning is printed.",
+          "default": null,
+          "anyOf": [
+            { "type": "integer", "minimum": 1 },
+            { "type": "null" }
+          ]
+        },
+        "cpp": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "C++ backend. Read only when cpp is an active language.",
+          "properties": {
+            "compile_commands": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Project-relative path to the compilation database. Each listed source file is parsed with that entry's compiler flags.",
+              "default": "compile_commands.json"
+            },
+            "libclang": {
+              "description": "Shared library used to parse C++. A string is a path to libclang.so, libclang.dylib, or libclang.dll, or to a directory that contains one of those. null, or a blank string, searches $LIBCLANG_PATH, then `llvm-config --libdir`, then /usr/local/lib and /usr/lib/llvm-*/lib, then the libclang wheel installed by `uv sync --extra cpp`.",
+              "default": null,
+              "anyOf": [
+                { "type": "string", "minLength": 1 },
+                { "type": "null" }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

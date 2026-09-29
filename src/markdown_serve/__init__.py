@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import socket
 import subprocess
@@ -15,7 +16,12 @@ import uvicorn
 from markdown_serve.app import create_app
 from markdown_serve.codedoc.builder import Progress, build
 from markdown_serve.codedoc.registry import BACKENDS, active_languages, check_language
-from markdown_serve.project_config import load_project_config
+from markdown_serve.project_config import (
+    PROJECT_CONFIG_NAME,
+    load_project_config,
+    pending_project_config,
+    write_project_config,
+)
 
 
 def _set_tmux_window_title(title: str) -> None:
@@ -163,6 +169,53 @@ def _build_cache(argv: list[str]) -> None:
         raise SystemExit(1)
 
 
+def _confirm(prompt: str) -> bool:
+    try:
+        answer = input(prompt).strip().lower()
+    except EOFError:
+        print(flush=True)
+        return False
+    return answer in {"y", "yes"}
+
+
+def _init(argv: list[str]) -> None:
+    parser = argparse.ArgumentParser(
+        prog="markdown-serve init",
+        description=(
+            f"Write {PROJECT_CONFIG_NAME} with the default project config. "
+            "If the file exists, show the missing keys and add them after confirmation."
+        ),
+    )
+    parser.add_argument("--root", "-r", type=Path, default=None, help="Project root (default: cwd)")
+    args = parser.parse_args(argv)
+
+    root = (args.root or Path.cwd()).resolve()
+    if not root.is_dir():
+        parser.error(f"Not a directory: {root}")
+    try:
+        path, _added, additions, created = pending_project_config(root)
+    except (OSError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr, flush=True)
+        raise SystemExit(1)
+    if not created and additions:
+        print(f"Will add to {path}:", flush=True)
+        print(json.dumps(additions, indent=2), flush=True)
+        if not _confirm("Add these keys? [y/N] "):
+            print(f"Left {path} unchanged", flush=True)
+            return
+    try:
+        path, added, created = write_project_config(root)
+    except (OSError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr, flush=True)
+        raise SystemExit(1)
+    if created:
+        print(f"Wrote {path}", flush=True)
+    elif added:
+        print(f"Updated {path}: added {', '.join(added)}", flush=True)
+    else:
+        print(f"{path} already has every key", flush=True)
+
+
 def main(argv: list[str] | None = None) -> None:
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in {"-h", "--help"}:
@@ -170,17 +223,22 @@ def main(argv: list[str] | None = None) -> None:
             print(
                 "usage: markdown-serve [serve] [options]\n"
                 "       markdown-serve build-cache [options]\n"
+                "       markdown-serve init [options]\n"
                 "\n"
                 "Live-preview markdown. `serve` is the default when no subcommand is given.\n"
                 "\n"
                 "subcommands:\n"
                 "  serve         preview the working directory (default)\n"
-                "  build-cache   build the optional code-documentation cache\n",
+                "  build-cache   build the optional code-documentation cache\n"
+                f"  init          write {PROJECT_CONFIG_NAME} with defaults, or add missing keys after confirmation\n",
                 flush=True,
             )
             return
     if args and args[0] == "build-cache":
         _build_cache(args[1:])
+        return
+    if args and args[0] == "init":
+        _init(args[1:])
         return
     if args and args[0] == "serve":
         args = args[1:]

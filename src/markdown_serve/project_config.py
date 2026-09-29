@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Any
 
 PROJECT_CONFIG_NAME = ".markdown-serve.json"
+PROJECT_CONFIG_SCHEMA = (
+    "https://raw.githubusercontent.com/TilGP/markdown-serve/main/markdown-serve.schema.json"
+)
 
 DEFAULT_PROJECT_CONFIG: dict[str, Any] = {
     "ignore": ["third-party/**", "cmake-build-*/**"],
@@ -25,6 +28,93 @@ DEFAULT_PROJECT_CONFIG: dict[str, Any] = {
         },
     },
 }
+
+# Set by the loader, never read from the file. Left out of ``init`` dumps.
+_INTERNAL_KEYS: frozenset[tuple[str, ...]] = frozenset({("codedoc", "languages_explicit")})
+
+
+def default_project_config_template() -> dict[str, Any]:
+    """The defaults as a user would write them (internal keys removed)."""
+    cfg = deepcopy(DEFAULT_PROJECT_CONFIG)
+    for path in _INTERNAL_KEYS:
+        node: Any = cfg
+        for part in path[:-1]:
+            node = node.get(part) if isinstance(node, dict) else None
+        if isinstance(node, dict):
+            node.pop(path[-1], None)
+    return {"$schema": PROJECT_CONFIG_SCHEMA, **cfg}
+
+
+def _plan(dst: dict[str, Any], defaults: dict[str, Any], prefix: str = "") -> tuple[list[str], dict[str, Any]]:
+    """Keys from ``defaults`` that ``dst`` lacks, without changing ``dst``.
+
+    Returns ``(dotted_names, additions)``. A missing object is one addition;
+    a present object is walked so only its missing children are included.
+    """
+    added: list[str] = []
+    extra: dict[str, Any] = {}
+    for key, value in defaults.items():
+        dotted = f"{prefix}{key}"
+        if key not in dst:
+            extra[key] = deepcopy(value)
+            added.append(dotted)
+        elif isinstance(value, dict) and isinstance(dst[key], dict):
+            nested_added, nested_extra = _plan(dst[key], value, f"{dotted}.")
+            added.extend(nested_added)
+            if nested_extra:
+                extra[key] = nested_extra
+    return added, extra
+
+
+def _apply(dst: dict[str, Any], additions: dict[str, Any]) -> None:
+    for key, value in additions.items():
+        if key in dst and isinstance(value, dict) and isinstance(dst[key], dict):
+            _apply(dst[key], value)
+        else:
+            dst[key] = deepcopy(value)
+
+
+def _read_project_config_file(root: Path) -> tuple[Path, dict[str, Any], bool]:
+    """Return ``(path, object, created)``. A missing file is an empty object.
+
+    Raises ``ValueError`` when the file exists but is not a JSON object.
+    """
+    path = root / PROJECT_CONFIG_NAME
+    if not path.is_file():
+        return path, {}, True
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ValueError(f"{path}: expected a JSON object")
+    return path, raw, False
+
+
+def pending_project_config(root: Path) -> tuple[Path, list[str], dict[str, Any], bool]:
+    """What ``write_project_config`` would add. Does not write.
+
+    Returns ``(path, added_keys, additions, created)``.
+    """
+    path, raw, created = _read_project_config_file(root)
+    added, additions = _plan(raw, default_project_config_template())
+    return path, added, additions, created
+
+
+def write_project_config(root: Path) -> tuple[Path, list[str], bool]:
+    """Create ``.markdown-serve.json`` or add missing keys to an existing one.
+
+    Returns ``(path, added_keys, created)``. Existing values and unknown keys
+    are kept. Raises ``ValueError`` when the file exists but is not a JSON
+    object, so user content is never overwritten.
+    """
+    path, added, additions, created = pending_project_config(root)
+    if not additions:
+        return path, added, created
+    _, raw, _ = _read_project_config_file(root)
+    _apply(raw, additions)
+    path.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
+    return path, added, created
 
 
 def _glob_to_regex(pattern: str) -> str:
