@@ -14,7 +14,7 @@ import uvicorn
 
 from markdown_serve.app import create_app
 from markdown_serve.codedoc.builder import Progress, build
-from markdown_serve.codedoc.registry import BACKENDS, check_language
+from markdown_serve.codedoc.registry import BACKENDS, active_languages, check_language
 from markdown_serve.project_config import load_project_config
 
 
@@ -109,7 +109,7 @@ def _print_progress(progress: Progress) -> None:
 def _build_cache(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(
         prog="markdown-serve build-cache",
-        description="Build the code-documentation cache (C++ via compile_commands.json).",
+        description="Build the code-documentation cache (C++ via compile_commands.json, Python via the stdlib AST).",
     )
     parser.add_argument("--root", "-r", type=Path, default=None, help="Project root (default: cwd)")
     parser.add_argument(
@@ -128,7 +128,7 @@ def _build_cache(argv: list[str]) -> None:
     if not root.is_dir():
         parser.error(f"Not a directory: {root}")
     cfg = load_project_config(root)
-    languages = args.lang or list(cfg["codedoc"]["languages"])
+    languages = args.lang or active_languages(root, cfg)
     if args.check:
         failed = False
         for language in languages:

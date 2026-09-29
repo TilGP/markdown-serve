@@ -22,9 +22,10 @@ from markdown_serve.codedoc.cache import (
     unit_key,
 )
 from markdown_serve.codedoc.cpp.backend import document_cpp_unit, find_libclang
+from markdown_serve.codedoc.python.backend import document_python_unit
 from markdown_serve.codedoc.markdown import render_file_markdown, render_index_markdown
 from markdown_serve.codedoc.model import FileDoc, Symbol, count_symbols, merge_file_docs
-from markdown_serve.codedoc.registry import backend_for
+from markdown_serve.codedoc.registry import active_languages, backend_for
 from markdown_serve.project_config import load_project_config, make_ignore
 
 
@@ -59,7 +60,7 @@ def build(
     """Rebuild the cache. ``cancel`` is a ``threading.Event`` (or anything with ``is_set``)."""
     root = root.resolve()
     cfg = load_project_config(root)
-    selected = languages or list(cfg["codedoc"]["languages"])
+    selected = languages if languages is not None else active_languages(root, cfg)
     cache = cache_dir(root, cfg)
     if clean and cache.exists():
         shutil.rmtree(cache)
@@ -246,15 +247,16 @@ def _parse_units(root, cfg, language, units, lang_manifest, jobs, force, cancel,
 
 def _run_payloads(language, payloads, jobs, cancel, errors, report, total):
     results = []
-    if language != "cpp":
-        errors.append(f"{language}: no worker (only cpp parsing is implemented)")
+    worker = {"cpp": document_cpp_unit, "python": document_python_unit}.get(language)
+    if worker is None:
+        errors.append(f"{language}: no worker")
         return results
     if jobs <= 1:
         for done, payload in enumerate(payloads, start=1):
             if _cancelled(cancel):
                 errors.append("cancelled")
                 break
-            results.append(document_cpp_unit(payload))
+            results.append(worker(payload))
             report("parse", done, total, payload["rel"], language)
         return results
 
@@ -262,7 +264,7 @@ def _run_payloads(language, payloads, jobs, cancel, errors, report, total):
 
     context = multiprocessing.get_context("spawn")
     with ProcessPoolExecutor(max_workers=jobs, mp_context=context) as pool:
-        futures = {pool.submit(document_cpp_unit, payload): payload for payload in payloads}
+        futures = {pool.submit(worker, payload): payload for payload in payloads}
         done = 0
         for future in as_completed(futures):
             payload = futures[future]

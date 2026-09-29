@@ -24,7 +24,7 @@ from watchdog.observers import Observer
 
 from markdown_serve.codedoc.builder import build
 from markdown_serve.codedoc.cache import find_doc_page, load_manifest, manifest_summary
-from markdown_serve.codedoc.registry import boot_status, code_suffixes, tools_status
+from markdown_serve.codedoc.registry import active_languages, boot_status, code_suffixes, tools_status
 from markdown_serve.codedoc.xrefs import load_symbol_index, render_codedoc_page
 from markdown_serve.config import (
     font_stack_css,
@@ -280,7 +280,7 @@ def create_app(root: Path) -> FastAPI:
             "progress": job.progress,
             "manifest": manifest_summary(manifest),
             "tools": tools_status(root, cfg),
-            "config": {"languages": cfg["codedoc"]["languages"], "ignore": cfg["ignore"]},
+            "config": {"languages": active_languages(root, cfg), "ignore": cfg["ignore"]},
         }
 
     @app.get("/__api/codedoc/status")

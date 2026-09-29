@@ -163,11 +163,11 @@ Left-click the sun/moon button to toggle light and dark. **Right-click it** to r
 
 ## Code documentation cache
 
-Optional. The viewer runs without it. When the tools above are present, markdown-serve can build a cache of generated markdown for C++ sources, in the style of `go doc`: one page per source file, with the file comment, an index, signatures, and the comment above each declaration. A documented function or type named in a signature is a link to its definition, and the definition lists the signatures that mention it. Headings and index entries carry a badge for the symbol kind (namespace, class, struct, enum, function, field, macro, include guard, and so on). Doxygen commands (`@brief`, `@param`, `@return`, `@tparam`, `@note`, `@see`, `@code`) are rendered as markdown. A `//` or `/* */` comment sitting directly above a declaration is used when there is no doxygen comment.
+Optional. The viewer runs without it. When the tools above are present, markdown-serve can build a cache of generated markdown for C++ and Python sources, in the style of `go doc`: one page per source file, with the file comment, an index, signatures, and the comment above each declaration. A documented function or type named in a signature is a link to its definition, and the definition lists the signatures that mention it. Headings and index entries carry a badge for the symbol kind (namespace, class, struct, enum, function, field, macro, include guard, and so on). Doxygen commands (`@brief`, `@param`, `@return`, `@tparam`, `@note`, `@see`, `@code`) are rendered as markdown. A `//` or `/* */` comment sitting directly above a declaration is used when there is no doxygen comment.
 
 The cache is written to `<project>/.cache/markdown-serve/` (override with `codedoc.cache_dir`). Add `.cache/` to the project's `.gitignore`. Pages are viewed at the source path (`/libs/foo.hpp`), not under `.cache`, so relative links in the generated markdown are written from the source file's directory. The language index lives in the cache (`/.cache/markdown-serve/cpp/index.md`); its links use `../` to climb back out to the project tree.
 
-A project can use more than one language later. Only C++ is implemented. The registry in `src/markdown_serve/codedoc/registry.py` is where another backend (for example `go doc`) would be added.
+C++ uses `compile_commands.json` and libclang. Python uses the stdlib `ast` module, so it needs nothing beyond the interpreter that runs markdown-serve. Both are on by default, and a language with no source files in the tree is left out, so a Python project does not ask for `compile_commands.json`. List `codedoc.languages` to force a set. The registry in `src/markdown_serve/codedoc/registry.py` is where another backend (for example `go doc`) would be added.
 
 ### Project config
 
@@ -180,7 +180,7 @@ For a tree like reda-engine, ignore vendored code and CMake build directories:
   "ignore": ["third-party/**", "cmake-build-*/**"],
   "codedoc": {
     "cache_dir": ".cache/markdown-serve",
-    "languages": ["cpp"],
+    "languages": ["cpp", "python"],
     "jobs": null,
     "cpp": { "compile_commands": "compile_commands.json", "libclang": null }
   }
@@ -200,7 +200,7 @@ markdown-serve build-cache -j 4 --lang cpp  # one language, 4 workers
 markdown-serve build-cache -r /path/to/project
 ```
 
-In the viewer, **Code docs** in the toolbar shows each requirement (green when present, red with the install hint when missing), the last build, **Build** (full), **Update** (incremental), **Cancel**, and a progress bar. **Show documented source files in sidebar** adds the documented `.hpp` / `.cpp` files to the file tree. It is off by default. A markdown link to a source file opens the generated page either way; without a cache, the page shows the highlighted source and tells you to build.
+In the viewer, **Code docs** in the toolbar shows each requirement (green when present, red with the install hint when missing), the last build, **Build** (full), **Update** (incremental), **Cancel**, and a progress bar. **Show documented source files in sidebar** adds the documented `.hpp` / `.cpp` / `.py` files to the file tree. It is off by default. A markdown link to a source file opens the generated page either way; without a cache, the page shows the highlighted source and tells you to build.
 
 ## Development
 

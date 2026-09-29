@@ -307,8 +307,8 @@ main {
 #content .sym-kind[data-kind="enum_constant"] { --kind-glyph: "≡"; background: #0d9488; }
 #content .sym-kind[data-kind="function"] { --kind-glyph: "ƒ"; background: #6d28d9; }
 #content .sym-kind[data-kind="method"] { --kind-glyph: "ƒ"; background: #7c3aed; }
-#content .sym-kind[data-kind="constructor"] { --kind-glyph: "⊕"; background: #8b5cf6; }
-#content .sym-kind[data-kind="destructor"] { --kind-glyph: "⊖"; background: #8b5cf6; }
+#content .sym-kind[data-kind="constructor"] { --kind-glyph: "●"; background: #8b5cf6; }
+#content .sym-kind[data-kind="destructor"] { --kind-glyph: "○"; background: #8b5cf6; }
 #content .sym-kind[data-kind="field"] { --kind-glyph: "▪"; background: #0369a1; }
 #content .sym-kind[data-kind="variable"] { --kind-glyph: "v"; background: #0284c7; }
 #content .sym-kind[data-kind="typedef"],

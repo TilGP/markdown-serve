@@ -14,7 +14,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pygments.lexers import CppLexer
+from pygments.lexers import CppLexer, PythonLexer
 from pygments.token import Name, STANDARD_TYPES
 
 from markdown_serve.codedoc.cache import cache_dir
@@ -27,8 +27,9 @@ _TAG = re.compile(r"<[^>]+>")
 
 def _heading_text(line: str) -> str:
     return _TAG.sub("", line.lstrip("#")).strip()
-_FENCE_OPEN = re.compile(r"^```(cppdoc|cpp)[ \t]*$")
+_FENCE_OPEN = re.compile(r"^```(cppdoc|cpp|pydoc)[ \t]*$")
 _IDENT = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*\b")
+_PY_IDENT = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*\b")
 _KEYWORDS = frozenset(
     """
     const volatile void int bool char auto signed unsigned long short float double
@@ -37,11 +38,14 @@ _KEYWORDS = frozenset(
     true false nullptr override final noexcept mutable friend using typedef decltype
     this new delete wchar_t char8_t char16_t char32_t extern register thread_local
     concept requires static_cast dynamic_cast reinterpret_cast const_cast
+    None True False self cls and as assert async await break continue del elif
+    except finally from global import in is lambda nonlocal not or pass raise
+    try with yield match case
     """.split()
 )
 # ponytail: first 40 refs, raise the cap if a common type needs the rest
 _REF_LIMIT = 40
-_LEXER = CppLexer()
+_LEXERS = {"cpp": CppLexer(), "py": PythonLexer()}
 _INDEX_CACHE: dict[str, tuple[int, SymbolIndex]] = {}
 _INDEX_LOCK = threading.Lock()
 
@@ -63,7 +67,7 @@ class SymbolIndex:
 
     def lookup(self, name: str) -> tuple[str, str, str] | None:
         """Return ``(qualified name, file, anchor)`` when the name is unambiguous."""
-        if "::" in name:
+        if "::" in name or "." in name:
             return _prefer(name, self.defs.get(name) or [])
         if name in _KEYWORDS:
             return None
@@ -76,13 +80,14 @@ class SymbolIndex:
 def index_pages(pages: list[tuple[str, str]]) -> SymbolIndex:
     """Build an index from ``(source path, generated markdown)`` pairs."""
     index = SymbolIndex()
-    signatures: list[tuple[str, str, str, str]] = []
+    signatures: list[tuple[str, str, str, str, str]] = []
     for rel, text in pages:
         _collect(rel, text, index, signatures)
     _fill_tails(index)
     seen: set[tuple[str, str, str]] = set()
-    for rel, anchor, by, body in signatures:
-        for match in _IDENT.finditer(body):
+    for rel, anchor, by, body, style in signatures:
+        pattern = _PY_IDENT if style == "py" else _IDENT
+        for match in pattern.finditer(body):
             hit = index.lookup(match.group(0))
             if hit is None:
                 continue
@@ -145,7 +150,7 @@ def render_codedoc_page(text: str, from_file: str, index: SymbolIndex) -> str:
             i += 1
             continue
         opened = _FENCE_OPEN.match(line.strip())
-        if opened and (opened.group(1) == "cppdoc" or expect_signature):
+        if opened and (opened.group(1) in {"cppdoc", "pydoc"} or expect_signature):
             body: list[str] = []
             i += 1
             while i < len(lines) and lines[i].strip() != "```":
@@ -154,8 +159,9 @@ def render_codedoc_page(text: str, from_file: str, index: SymbolIndex) -> str:
             if i < len(lines):
                 i += 1
             expect_signature = False
+            style = "py" if opened.group(1) == "pydoc" else "cpp"
             token = f"CPPDOCPLACEHOLDER{uuid.uuid4().hex}END"
-            blocks[token] = _highlight("\n".join(body), from_file, index, current_id)
+            blocks[token] = _highlight("\n".join(body), from_file, index, current_id, style)
             out.append("")
             out.append(token)
             out.append("")
@@ -183,12 +189,16 @@ def _prefer(name: str, locs: list[tuple[str, str]]) -> tuple[str, str, str] | No
     return name, locs[0][0], locs[0][1]
 
 
+def _qual_depth(name: str) -> int:
+    return name.count("::") + name.count(".")
+
+
 def _prefer_tail(entries: list[tuple[str, str, str]]) -> tuple[str, str, str] | None:
     """Bare names pick the shortest match (the type, not ``Type::Type``) when that one is unique."""
     if not entries:
         return None
-    depth = min(entry[0].count("::") for entry in entries)
-    chosen = [entry for entry in entries if entry[0].count("::") == depth]
+    depth = min(_qual_depth(entry[0]) for entry in entries)
+    chosen = [entry for entry in entries if _qual_depth(entry[0]) == depth]
     files = {entry[1] for entry in chosen}
     if len(files) != 1:
         return None
@@ -197,7 +207,7 @@ def _prefer_tail(entries: list[tuple[str, str, str]]) -> tuple[str, str, str] | 
 
 def _fill_tails(index: SymbolIndex) -> None:
     for name, locs in index.defs.items():
-        tail = name.rsplit("::", 1)[-1]
+        tail = re.split(r"::|\.", name)[-1]
         if not tail or tail in _KEYWORDS:
             continue
         bucket = index.tails.setdefault(tail, [])
@@ -205,7 +215,7 @@ def _fill_tails(index: SymbolIndex) -> None:
             bucket.append((name, file, anchor))
 
 
-def _collect(rel: str, text: str, index: SymbolIndex, signatures: list[tuple[str, str, str, str]]) -> None:
+def _collect(rel: str, text: str, index: SymbolIndex, signatures: list[tuple[str, str, str, str, str]]) -> None:
     lines = text.splitlines()
     i = 0
     pending_id: str | None = None
@@ -229,7 +239,7 @@ def _collect(rel: str, text: str, index: SymbolIndex, signatures: list[tuple[str
             i += 1
             continue
         opened = _FENCE_OPEN.match(line.strip())
-        if opened and current_id and current_name and (opened.group(1) == "cppdoc" or expect_signature):
+        if opened and current_id and current_name and (opened.group(1) in {"cppdoc", "pydoc"} or expect_signature):
             body: list[str] = []
             i += 1
             while i < len(lines) and lines[i].strip() != "```":
@@ -238,7 +248,8 @@ def _collect(rel: str, text: str, index: SymbolIndex, signatures: list[tuple[str
             if i < len(lines):
                 i += 1
             expect_signature = False
-            signatures.append((rel, current_id, current_name, "\n".join(body)))
+            style = "py" if opened.group(1) == "pydoc" else "cpp"
+            signatures.append((rel, current_id, current_name, "\n".join(body), style))
             continue
         if pending_id and line.strip():
             pending_id = None
@@ -290,7 +301,9 @@ def _href(from_file: str, target: str, anchor: str) -> str:
     return f"{rel_href(from_file, target)}#{anchor}"
 
 
-def _highlight(source: str, from_file: str, index: SymbolIndex, current_anchor: str | None) -> str:
+def _highlight(
+    source: str, from_file: str, index: SymbolIndex, current_anchor: str | None, style: str = "cpp"
+) -> str:
     parts: list[str] = []
     buf: list[tuple[str, str]] = []
     state = "idle"
@@ -310,9 +323,23 @@ def _highlight(source: str, from_file: str, index: SymbolIndex, current_anchor: 
         buf.clear()
         state = "idle"
 
-    for ttype, value in _LEXER.get_tokens(source):
+    sep = "." if style == "py" else ":"
+    seps_needed = 1 if style == "py" else 2
+    seen_seps = 0
+    for ttype, value in _LEXERS.get(style, _LEXERS["cpp"]).get_tokens(source):
         cls = _css(ttype)
         is_name = ttype in Name
+
+        def take_plain() -> None:
+            nonlocal state, seen_seps
+            flush()
+            seen_seps = 0
+            if is_name:
+                buf.append((cls, value))
+                state = "ident"
+            else:
+                parts.append(_span(cls, value))
+
         if state == "idle":
             if is_name:
                 buf.append((cls, value))
@@ -320,34 +347,27 @@ def _highlight(source: str, from_file: str, index: SymbolIndex, current_anchor: 
             else:
                 parts.append(_span(cls, value))
         elif state == "ident":
-            if value == ":":
+            if value == sep:
                 buf.append((cls, value))
-                state = "colon"
+                seen_seps = 1
+                state = "need" if seen_seps == seps_needed else "seps"
             else:
-                flush()
-                if is_name:
-                    buf.append((cls, value))
-                    state = "ident"
-                else:
-                    parts.append(_span(cls, value))
-        elif state == "colon":
-            if value == ":":
+                take_plain()
+        elif state == "seps":
+            if value == sep and seen_seps < seps_needed:
                 buf.append((cls, value))
-                state = "need"
+                seen_seps += 1
+                if seen_seps == seps_needed:
+                    state = "need"
             else:
-                flush()
-                if is_name:
-                    buf.append((cls, value))
-                    state = "ident"
-                else:
-                    parts.append(_span(cls, value))
+                take_plain()
         elif state == "need":
             if is_name:
                 buf.append((cls, value))
+                seen_seps = 0
                 state = "ident"
             else:
-                flush()
-                parts.append(_span(cls, value))
+                take_plain()
     flush()
     return f'<div class="highlight"><pre><span></span>{"".join(parts)}</pre></div>'
 

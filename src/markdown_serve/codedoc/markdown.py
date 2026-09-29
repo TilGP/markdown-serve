@@ -128,9 +128,10 @@ def _slug(text: str, used: set[str]) -> str:
     return slug
 
 
-def _fence(signature: str) -> str:
+def _fence(signature: str, language: str = "cpp") -> str:
     body = signature.replace("```", "'''")
-    return f"```cppdoc\n{body}\n```"
+    tag = "pydoc" if language == "python" else "cppdoc"
+    return f"```{tag}\n{body}\n```"
 
 
 KIND_LABELS = {
@@ -160,7 +161,9 @@ def kind_badge(kind: str) -> str:
     return f'<span class="sym-kind" data-kind="{key}" title="{label}"></span>'
 
 
-def _render_symbol(symbol: Symbol, from_file: str, level: int, used: set[str], root: Path | None) -> list[str]:
+def _render_symbol(
+    symbol: Symbol, from_file: str, level: int, used: set[str], root: Path | None, language: str = "cpp"
+) -> list[str]:
     slug = _slug(symbol.qualified_name or symbol.name, used)
     heading = min(level, 6)
     doc = linkify_markdown_paths(doxygen_to_markdown(symbol.doc), from_file, root) if symbol.doc else ""
@@ -172,7 +175,7 @@ def _render_symbol(symbol: Symbol, from_file: str, level: int, used: set[str], r
         f'<a id="{slug}"></a>',
         f"{'#' * heading} {kind_badge(symbol.kind)}{symbol.qualified_name or symbol.name}",
         "",
-        _fence(symbol.signature or symbol.name),
+        _fence(symbol.signature or symbol.name, language),
         "",
     ]
     if doc:
@@ -181,7 +184,7 @@ def _render_symbol(symbol: Symbol, from_file: str, level: int, used: set[str], r
     lines.append(f"Defined at [{symbol.file}:{line}]({defined}?line={line}).")
     lines.append("")
     for child in symbol.children:
-        lines.extend(_render_symbol(child, from_file, level + 1, used, root))
+        lines.extend(_render_symbol(child, from_file, level + 1, used, root, language))
     return lines
 
 
@@ -219,7 +222,7 @@ def render_file_markdown(doc: FileDoc, root: Path | None = None) -> str:
         lines.append(linkify_markdown_paths(doxygen_to_markdown(doc.file_doc), from_file, root))
         lines.append("")
     if doc.includes:
-        lines.append("## Includes")
+        lines.append("## Imports" if doc.language == "python" else "## Includes")
         lines.append("")
         for include in doc.includes:
             lines.append(f"- [{include}]({rel_href(from_file, include)})")
@@ -234,7 +237,7 @@ def render_file_markdown(doc: FileDoc, root: Path | None = None) -> str:
         lines.extend(_index_lines(doc.symbols, preview_map))
         lines.append("")
         for symbol in doc.symbols:
-            lines.extend(_render_symbol(symbol, from_file, 2, used_ids, root))
+            lines.extend(_render_symbol(symbol, from_file, 2, used_ids, root, doc.language))
     return "\n".join(lines).rstrip() + "\n"
 
 

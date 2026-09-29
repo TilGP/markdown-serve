@@ -16,8 +16,9 @@ DEFAULT_PROJECT_CONFIG: dict[str, Any] = {
     "ignore": ["third-party/**", "cmake-build-*/**"],
     "codedoc": {
         "cache_dir": ".cache/markdown-serve",
-        "languages": ["cpp"],
+        "languages": ["cpp", "python"],
         "jobs": None,
+        "languages_explicit": False,
         "cpp": {
             "compile_commands": "compile_commands.json",
             "libclang": None,
@@ -126,6 +127,7 @@ def load_project_config(root: Path) -> dict[str, Any]:
     languages = codedoc.get("languages")
     if isinstance(languages, list) and languages:
         cfg["codedoc"]["languages"] = [str(item) for item in languages if str(item).strip()]
+        cfg["codedoc"]["languages_explicit"] = True
     if "jobs" in codedoc:
         jobs = codedoc.get("jobs")
         if jobs is None:

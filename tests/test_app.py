@@ -158,7 +158,8 @@ def test_codedoc_status_and_files(workspace: Path) -> None:
     app = create_app(workspace)
     status = _run(_endpoint(app, "/__api/codedoc/status")())
     assert status["running"] is False
-    assert "cpp" in status["tools"]
+    assert "cpp" not in status["tools"]
+    assert "compile_commands.json" not in str(status["tools"])
     assert "ignore" in status["config"]
     cache = workspace / ".cache" / "markdown-serve"
     cache.mkdir(parents=True)

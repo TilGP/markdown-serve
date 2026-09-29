@@ -4,7 +4,7 @@ const PLANTUML_EXT = new Set(["puml", "plantuml", "pu", "iuml", "wsd"]);
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"]);
 const PDF_EXT = new Set(["pdf"]);
 const CSV_EXT = new Set(["csv", "tsv"]);
-const CODE_EXT = new Set(["hpp", "h", "hh", "hxx", "cpp", "cc", "cxx", "ipp", "inl"]);
+const CODE_EXT = new Set(["hpp", "h", "hh", "hxx", "cpp", "cc", "cxx", "ipp", "inl", "py"]);
 
 export function extOf(path) {
   const i = path.lastIndexOf(".");
