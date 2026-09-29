@@ -236,7 +236,7 @@ function scrollToSourceLine(sourceText, lineNum) {
   target.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-export async function load(path, { line = null } = {}) {
+export async function load(path, { line = null, fromPopState = false } = {}) {
   if (!path) {
     content.classList.remove("asset-mode");
     content.innerHTML = '<p class="empty">Select a file.</p>';
@@ -257,7 +257,14 @@ export async function load(path, { line = null } = {}) {
       if (current && !/^#L\d+$/i.test(current)) hash = current;
     } catch (_) {}
   }
-  history.replaceState(null, "", "/" + encodePath(path) + lineQuery + hash);
+  if (!fromPopState) {
+    const url = "/" + encodePath(path) + lineQuery + hash;
+    if (previousPath === path) {
+      history.replaceState({ path, line }, "", url);
+    } else {
+      history.pushState({ path, line }, "", url);
+    }
+  }
   markActive(path);
   setPrintVisible(isRenderedKind(kind));
 

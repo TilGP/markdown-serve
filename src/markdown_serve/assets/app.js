@@ -6,6 +6,7 @@ import { initWrap } from "./js/wrap.js";
 import { fitWideTables } from "./js/diagrams.js";
 import { initNav, renderNav } from "./js/nav.js";
 import { initDefinedAtMenu, initPrint, load } from "./js/content.js";
+import { closeLightbox } from "./js/lightbox.js";
 import { connect } from "./js/live.js";
 import { initCodedoc } from "./js/codedoc.js";
 
@@ -25,6 +26,12 @@ initNav({ load });
 initCodedoc();
 
 window.addEventListener("resize", fitWideTables);
+
+window.addEventListener("popstate", () => {
+  closeLightbox();
+  const path = decodeURIComponent(location.pathname.replace(/^\/+/, ""));
+  load(path, { line: lineFromLocation(), fromPopState: true });
+});
 
 renderNav(initialFiles, initialPath);
 load(initialPath, { line: lineFromLocation() });
