@@ -30,6 +30,81 @@ main {
   gap: 0.75rem;
   margin-bottom: 1rem;
   width: 100%;
+  position: relative;
+}
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+}
+.codedoc-panel {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 6;
+  width: min(26rem, 80vw);
+  padding: 0.75rem 0.85rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 12%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+.codedoc-panel[hidden] { display: none !important; }
+.codedoc-heading {
+  font-weight: 650;
+  margin-bottom: 0.45rem;
+  color: var(--ink);
+}
+.codedoc-tools {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+}
+.codedoc-tools li { margin: 0.15rem 0; }
+.codedoc-tools .ok { color: #16a34a; }
+.codedoc-tools .missing { color: #b91c1c; }
+.codedoc-summary {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--muted);
+  word-break: break-word;
+}
+.codedoc-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+.codedoc-actions button {
+  font: inherit;
+  font-size: 0.7rem;
+  color: var(--ink);
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  cursor: pointer;
+}
+.codedoc-actions button:disabled { opacity: 0.45; cursor: default; }
+#codedoc-progress {
+  width: 100%;
+  height: 0.55rem;
+  accent-color: var(--accent);
+}
+.codedoc-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+  color: var(--ink);
+}
+#codedoc-error-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1rem;
+  max-height: 8rem;
+  overflow: auto;
+  color: var(--muted);
 }
 #status {
   font-family: var(--font-mono);
@@ -166,6 +241,80 @@ main {
   margin-top: 1.75rem;
 }
 #content a { color: var(--accent); }
+#content .highlight a.cppdoc-def {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.defined-at-menu {
+  position: fixed;
+  z-index: 30;
+  margin: 0;
+  padding: 0.25rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+.defined-at-menu[hidden] { display: none !important; }
+.defined-at-menu-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.defined-at-menu-item:hover,
+.defined-at-menu-item:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+/* Symbol kind badges on generated code-doc pages. Glyphs live in CSS so heading text stays clean. */
+#content .sym-kind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7em;
+  height: 1.7em;
+  margin-right: 0.45em;
+  padding: 0 0.3em;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.6em;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: 0.2em;
+  color: #fff;
+  background: var(--muted);
+  --kind-glyph: "?";
+}
+#content li > .sym-kind {
+  font-size: 0.72em;
+  vertical-align: 0.1em;
+}
+#content .sym-kind::before { content: var(--kind-glyph); }
+#content .sym-kind[data-kind="namespace"] { --kind-glyph: "{}"; background: #6b7280; }
+#content .sym-kind[data-kind="class"] { --kind-glyph: "C"; background: #b45309; }
+#content .sym-kind[data-kind="struct"] { --kind-glyph: "S"; background: #c2410c; }
+#content .sym-kind[data-kind="union"] { --kind-glyph: "U"; background: #9a3412; }
+#content .sym-kind[data-kind="enum"] { --kind-glyph: "E"; background: #0f766e; }
+#content .sym-kind[data-kind="enum_constant"] { --kind-glyph: "≡"; background: #0d9488; }
+#content .sym-kind[data-kind="function"] { --kind-glyph: "ƒ"; background: #6d28d9; }
+#content .sym-kind[data-kind="method"] { --kind-glyph: "ƒ"; background: #7c3aed; }
+#content .sym-kind[data-kind="constructor"] { --kind-glyph: "⊕"; background: #8b5cf6; }
+#content .sym-kind[data-kind="destructor"] { --kind-glyph: "⊖"; background: #8b5cf6; }
+#content .sym-kind[data-kind="field"] { --kind-glyph: "▪"; background: #0369a1; }
+#content .sym-kind[data-kind="variable"] { --kind-glyph: "v"; background: #0284c7; }
+#content .sym-kind[data-kind="typedef"],
+#content .sym-kind[data-kind="using"] { --kind-glyph: "T"; background: #be185d; }
+#content .sym-kind[data-kind="macro"] { --kind-glyph: "#"; background: #4d7c0f; }
+#content .sym-kind[data-kind="include_guard"] { --kind-glyph: "#!"; background: #65a30d; }
 #content p { margin: 0; }
 #content a.broken-link {
   color: var(--broken);

@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from fastapi import HTTPException
 from fastapi.routing import APIRoute
+from starlette.requests import Request
 
 from markdown_serve.app import create_app
 
@@ -70,6 +71,112 @@ def test_render_endpoint_rejects_non_text_files(workspace: Path) -> None:
     with pytest.raises(HTTPException) as exc:
         _run(render("notes.txt"))
     assert exc.value.status_code == 404
+
+
+def _request(method: str, path: str, body: bytes = b"", accept: str = "") -> Request:
+    headers = []
+    if accept:
+        headers.append((b"accept", accept.encode()))
+    if body:
+        headers.append((b"content-type", b"application/json"))
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": method,
+        "scheme": "http",
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "headers": headers,
+        "client": ("127.0.0.1", 123),
+        "server": ("127.0.0.1", 80),
+    }
+
+    async def receive():
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    return Request(scope, receive)
+
+
+def test_code_file_without_cache_renders_source(workspace: Path) -> None:
+    (workspace / "foo.hpp").write_text("int value;\n", encoding="utf-8")
+    app = create_app(workspace)
+    render = _endpoint(app, "/__api/render/{file_path:path}")
+    data = _run(render("foo.hpp"))
+    assert data["path"] == "foo.hpp"
+    assert "No documentation cache" in data["html"]
+    assert "int" in data["html"]
+    assert data["text"] == "int value;\n"
+    files = _run(_endpoint(app, "/__api/files")())
+    assert "foo.hpp" not in files
+
+
+def test_code_file_render_uses_cache_and_keeps_source_path(workspace: Path) -> None:
+    (workspace / "foo.hpp").write_text("int value;\n", encoding="utf-8")
+    cached = workspace / ".cache" / "markdown-serve" / "cpp" / "foo.hpp.md"
+    cached.parent.mkdir(parents=True)
+    cached.write_text(
+        "\n".join(
+            [
+                '<a id="value"></a>',
+                "## value",
+                "",
+                "```cppdoc",
+                "int value",
+                "```",
+                "",
+                "Defined at [foo.hpp:1](foo.hpp?line=1).",
+                "",
+                "See [notes](notes.md).",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    app = create_app(workspace)
+    render = _endpoint(app, "/__api/render/{file_path:path}")
+    data = _run(render("foo.hpp"))
+    assert data["path"] == "foo.hpp"
+    assert "notes.md" in data["html"]
+    assert ".cache/" not in data["path"]
+    files = _run(_endpoint(app, "/__api/files")())
+    assert all(not name.startswith(".cache") for name in files)
+
+
+def test_code_path_serves_the_viewer_shell(workspace: Path) -> None:
+    (workspace / "foo.hpp").write_text("int value;\n", encoding="utf-8")
+    app = create_app(workspace)
+    serve = _endpoint(app, "/{file_path:path}")
+    response = _run(serve("foo.hpp", _request("GET", "/foo.hpp", accept="text/html")))
+    body = response.body.decode()
+    assert "markdown-serve-boot" in body
+    assert "foo.hpp" in body
+
+
+def test_codedoc_status_and_files(workspace: Path) -> None:
+    app = create_app(workspace)
+    status = _run(_endpoint(app, "/__api/codedoc/status")())
+    assert status["running"] is False
+    assert "cpp" in status["tools"]
+    assert "ignore" in status["config"]
+    cache = workspace / ".cache" / "markdown-serve"
+    cache.mkdir(parents=True)
+    (cache / "manifest.json").write_text(
+        '{"version":2,"built_at":"2026-01-01T00:00:00Z","languages":{"cpp":{"files":{"foo.hpp":{"sha256":"a","symbols":1}},"units":{},"tools":{}}}}\n',
+        encoding="utf-8",
+    )
+    listed = _run(_endpoint(app, "/__api/codedoc/files")())
+    assert listed == ["foo.hpp"]
+
+
+def test_codedoc_build_conflicts_when_already_running(workspace: Path) -> None:
+    app = create_app(workspace)
+    app.state.codedoc_job.running = True
+    build = _endpoint(app, "/__api/codedoc/build")
+    with pytest.raises(HTTPException) as exc:
+        _run(build(_request("POST", "/__api/codedoc/build", b"{}")))
+    assert exc.value.status_code == 409
 
 
 def test_search_includes_diagram_files(workspace: Path) -> None:

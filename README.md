@@ -31,9 +31,11 @@ Point it at a notes tree, a docs repo, or any project with `.md` files. You get 
 
 Wide tables and PlantUML SVGs expand the content panel instead of getting squashed; paragraphs keep wrapping at the configured line length.
 
-## Quick start
+## What you need
 
-Requires [uv](https://docs.astral.sh/uv/) and a JRE (`java` on `PATH`) for PlantUML.
+### Installed by uv
+
+Python dependencies live in `pyproject.toml` and are installed with [uv](https://docs.astral.sh/uv/). The core viewer does not need the C++ extra.
 
 ```bash
 git clone <this-repo>
@@ -41,6 +43,26 @@ cd markdown-serve
 uv sync
 export PATH="$PWD/bin:$PATH"
 ```
+
+Code documentation for C++ also needs the optional extra (the `libclang` Python bindings and, in the wheel, a bundled `libclang.so`):
+
+```bash
+uv sync --extra cpp
+```
+
+### Not installed by uv
+
+These are declared in `[tool.markdown-serve.system-requires]` in `pyproject.toml`. `uv sync` does not install them. They are required even when a machine or container already has them.
+
+| Tool | Used for |
+|------|----------|
+| `java` | PlantUML. A JRE on `PATH`, or a `plantuml` binary. Already required by the viewer. |
+| `clang++` | C++ code docs. Must be runnable at the compiler path recorded in `compile_commands.json`. Used for `-print-resource-dir` when that compiler exists. |
+| `libclang` (`libclang.so`) | C++ code docs, when the bundled wheel library is not used. Search order: `codedoc.cpp.libclang` in `.markdown-serve.json`, `$LIBCLANG_PATH`, system (`llvm-config --libdir`, `/usr/local/lib/libclang.so`, `/usr/lib/llvm-*/lib`), then the wheel. |
+
+`compile_commands.json` is project build output, not a package. CMake writes it with `-DCMAKE_EXPORT_COMPILE_COMMANDS=ON`.
+
+## Quick start
 
 From any directory that has Markdown:
 
@@ -56,6 +78,8 @@ Opens `http://127.0.0.1:8765` and serves the current working directory.
 | `--host` | Bind address (default `127.0.0.1`) |
 | `-r`, `--root` | Directory to serve (default: CWD) |
 | `--no-open` | Don’t open a browser |
+
+`serve` is the default subcommand, so `markdown-serve -p 9000` still starts the viewer. `markdown-serve serve` is the same thing.
 
 ## UI and search
 
@@ -136,6 +160,47 @@ It holds theme, [Pygments](https://pygments.org/) styles, font stacks, sidebar c
 ```
 
 Left-click the sun/moon button to toggle light and dark. **Right-click it** to reveal the settings panel: the code-highlighting style dropdown for the active theme (any installed Pygments style), and wrap / line-length controls for text and tables. `width` is in characters (`ch`, 20–300). With `text.wrap` off, paragraphs fill the whole panel (including when it is widened for a table); with `tables.wrap` off, cells never wrap and the panel grows to fit. Collapsing either sidebar updates `sidebars` in this file. Fonts are config-only (no picker). The file is gitignored so local preferences stay on your machine.
+
+## Code documentation cache
+
+Optional. The viewer runs without it. When the tools above are present, markdown-serve can build a cache of generated markdown for C++ sources, in the style of `go doc`: one page per source file, with the file comment, an index, signatures, and the comment above each declaration. A documented function or type named in a signature is a link to its definition, and the definition lists the signatures that mention it. Headings and index entries carry a badge for the symbol kind (namespace, class, struct, enum, function, field, macro, include guard, and so on). Doxygen commands (`@brief`, `@param`, `@return`, `@tparam`, `@note`, `@see`, `@code`) are rendered as markdown. A `//` or `/* */` comment sitting directly above a declaration is used when there is no doxygen comment.
+
+The cache is written to `<project>/.cache/markdown-serve/` (override with `codedoc.cache_dir`). Add `.cache/` to the project's `.gitignore`. Pages are viewed at the source path (`/libs/foo.hpp`), not under `.cache`, so relative links in the generated markdown are written from the source file's directory. The language index lives in the cache (`/.cache/markdown-serve/cpp/index.md`); its links use `../` to climb back out to the project tree.
+
+A project can use more than one language later. Only C++ is implemented. The registry in `src/markdown_serve/codedoc/registry.py` is where another backend (for example `go doc`) would be added.
+
+### Project config
+
+Optional file: `<project>/.markdown-serve.json`. Paths matching `ignore` are left out of the cache. Globs: `*` is one path segment, `**` is any depth. Prefix `re:` for a regular expression.
+
+For a tree like reda-engine, ignore vendored code and CMake build directories:
+
+```json
+{
+  "ignore": ["third-party/**", "cmake-build-*/**"],
+  "codedoc": {
+    "cache_dir": ".cache/markdown-serve",
+    "languages": ["cpp"],
+    "jobs": null,
+    "cpp": { "compile_commands": "compile_commands.json", "libclang": null }
+  }
+}
+```
+
+Those two ignore patterns are the default when the file is missing. `jobs` null uses one process per CPU. `libclang` null uses the search order above.
+
+### Build
+
+```bash
+markdown-serve build-cache --check          # tool status, no parse
+markdown-serve build-cache                  # incremental
+markdown-serve build-cache --force          # reparse everything
+markdown-serve build-cache --clean          # delete the cache first
+markdown-serve build-cache -j 4 --lang cpp  # one language, 4 workers
+markdown-serve build-cache -r /path/to/project
+```
+
+In the viewer, **Code docs** in the toolbar shows each requirement (green when present, red with the install hint when missing), the last build, **Build** (full), **Update** (incremental), **Cancel**, and a progress bar. **Show documented source files in sidebar** adds the documented `.hpp` / `.cpp` files to the file tree. It is off by default. A markdown link to a source file opens the generated page either way; without a cache, the page shows the highlighted source and tells you to build.
 
 ## Development
 

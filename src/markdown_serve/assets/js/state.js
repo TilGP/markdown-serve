@@ -17,6 +17,8 @@ export const state = {
   searchMode: "files",
   contentSearchToken: 0,
   contentSearchTimer: null,
+  projectFiles: initialFiles,
+  codeDocFiles: [],
   appConfig: boot.config || {
     theme: "light",
     styles: { light: "default", dark: "nord" },
@@ -24,5 +26,6 @@ export const state = {
     sidebars: { files_collapsed: false, toc_collapsed: false },
     text: { wrap: true, width: 90 },
     tables: { wrap: true, width: 80 },
+    codedoc: { show_in_sidebar: false },
   },
 };

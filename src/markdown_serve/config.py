@@ -53,6 +53,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     # Line length in `ch`; wrap=False lets text fill the panel / table cells never wrap.
     "text": {"wrap": True, "width": 90},
     "tables": {"wrap": True, "width": 80},
+    "codedoc": {"show_in_sidebar": False},
 }
 
 MIN_LINE_WIDTH = 20
@@ -156,6 +157,12 @@ def _normalize(data: dict[str, Any]) -> dict[str, Any]:
 
     cfg["text"] = _normalize_wrap(data.get("text"), cfg["text"])
     cfg["tables"] = _normalize_wrap(data.get("tables"), cfg["tables"])
+    codedoc = data.get("codedoc") or {}
+    if not isinstance(codedoc, dict):
+        codedoc = {}
+    cfg["codedoc"] = {
+        "show_in_sidebar": bool(codedoc.get("show_in_sidebar", cfg["codedoc"]["show_in_sidebar"])),
+    }
     return cfg
 
 
@@ -194,6 +201,8 @@ def update_config(patch: dict[str, Any]) -> dict[str, Any]:
     for key in ("text", "tables"):
         if key in patch and isinstance(patch[key], dict):
             current[key] = {**current[key], **patch[key]}
+    if "codedoc" in patch and isinstance(patch["codedoc"], dict):
+        current["codedoc"] = {**current["codedoc"], **patch["codedoc"]}
     return save_config(current)
 
 

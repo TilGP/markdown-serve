@@ -5,8 +5,9 @@ import { initLayout } from "./js/layout.js";
 import { initWrap } from "./js/wrap.js";
 import { fitWideTables } from "./js/diagrams.js";
 import { initNav, renderNav } from "./js/nav.js";
-import { initPrint, load } from "./js/content.js";
+import { initDefinedAtMenu, initPrint, load } from "./js/content.js";
 import { connect } from "./js/live.js";
+import { initCodedoc } from "./js/codedoc.js";
 
 initTheme({
   onThemeToggle: () => {
@@ -19,7 +20,9 @@ initTheme({
 initLayout();
 initWrap();
 initPrint();
+initDefinedAtMenu();
 initNav({ load });
+initCodedoc();
 
 window.addEventListener("resize", fitWideTables);
 

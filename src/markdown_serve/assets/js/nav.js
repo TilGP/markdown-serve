@@ -139,9 +139,19 @@ function scheduleContentSearch(files, active, query) {
   }, 150);
 }
 
+function withCodeDocs(files) {
+  if (!state.appConfig.codedoc?.show_in_sidebar || !state.codeDocFiles?.length) return files;
+  const seen = new Set(files);
+  const extra = state.codeDocFiles.filter((path) => !seen.has(path));
+  return extra.length ? files.concat(extra) : files;
+}
+
 export function renderNav(files, active, query = "") {
-  state.allFiles = files;
+  state.projectFiles = files;
+  const shown = withCodeDocs(files);
+  state.allFiles = shown;
   state.focusIndex = -1;
+  files = shown;
   if (state.searchMode === "content") {
     scheduleContentSearch(files, active, query);
     return;
@@ -208,7 +218,7 @@ export function setSearchMode(mode) {
   filesBtn.setAttribute("aria-selected", state.searchMode === "files" ? "true" : "false");
   contentBtn.setAttribute("aria-selected", state.searchMode === "content" ? "true" : "false");
   finder.placeholder = state.searchMode === "content" ? "Search content…" : "Search files…";
-  renderNav(state.allFiles, state.currentPath, finder.value);
+  renderNav(state.projectFiles, state.currentPath, finder.value);
 }
 
 export function initNav({ load } = {}) {
@@ -236,7 +246,7 @@ export function initNav({ load } = {}) {
   });
 
   finder.addEventListener("input", () => {
-    renderNav(state.allFiles, state.currentPath, finder.value);
+    renderNav(state.projectFiles, state.currentPath, finder.value);
   });
 
   finder.addEventListener("keydown", (e) => {
@@ -262,7 +272,7 @@ export function initNav({ load } = {}) {
     } else if (e.key === "Escape") {
       if (finder.value) {
         finder.value = "";
-        renderNav(state.allFiles, state.currentPath, "");
+        renderNav(state.projectFiles, state.currentPath, "");
       } else {
         finder.blur();
       }

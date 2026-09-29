@@ -2,6 +2,7 @@ import { status, finder } from "./dom.js";
 import { state } from "./state.js";
 import { renderNav } from "./nav.js";
 import { load } from "./content.js";
+import { refreshAfterCodeDocBuild } from "./codedoc.js";
 
 const MAX_RECONNECT_ATTEMPTS = 3;
 let reconnectAttempts = 0;
@@ -86,6 +87,12 @@ export function connect() {
 
   ws.onmessage = async (ev) => {
     const changed = ev.data;
+    if (changed === "__codedoc__") {
+      try {
+        await refreshAfterCodeDocBuild();
+      } catch (_) {}
+      return;
+    }
     try {
       const res = await fetch("/__api/files");
       const files = await res.json();

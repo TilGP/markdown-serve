@@ -19,3 +19,4 @@ src/markdown_serve/config.json
 test-results/
 playwright-report/
 blob-report/
+.cache/markdown-serve

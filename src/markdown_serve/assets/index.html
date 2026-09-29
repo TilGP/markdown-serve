@@ -87,6 +87,10 @@ __WRAP_CSS__    }
       <div class="main-column">
         <div class="main-toolbar">
           <div id="status">connecting…</div>
+          <div class="toolbar-actions">
+          <button type="button" id="codedoc-toggle" class="print-page" aria-label="Code documentation" title="Code docs">
+            Code docs
+          </button>
           <button type="button" id="print-page" class="print-page" hidden aria-label="Print page" title="Print">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M6 9V3h12v6"></path>
@@ -95,6 +99,27 @@ __WRAP_CSS__    }
             </svg>
             <span>Print</span>
           </button>
+          </div>
+          <div id="codedoc-panel" class="codedoc-panel" hidden>
+            <div class="codedoc-heading">Code documentation</div>
+            <ul id="codedoc-tools" class="codedoc-tools"></ul>
+            <p id="codedoc-summary" class="codedoc-summary"></p>
+            <div class="codedoc-actions">
+              <button type="button" id="codedoc-build">Build</button>
+              <button type="button" id="codedoc-update">Update</button>
+              <button type="button" id="codedoc-cancel" disabled>Cancel</button>
+            </div>
+            <progress id="codedoc-progress" max="1" value="0"></progress>
+            <p id="codedoc-progress-text" class="codedoc-summary"></p>
+            <details id="codedoc-errors" hidden>
+              <summary id="codedoc-error-count">0 errors</summary>
+              <ul id="codedoc-error-list"></ul>
+            </details>
+            <label class="codedoc-toggle">
+              <input type="checkbox" id="codedoc-sidebar">
+              Show documented source files in sidebar
+            </label>
+          </div>
         </div>
         <article id="content"><p class="empty">Select a file.</p></article>
       </div>

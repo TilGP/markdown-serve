@@ -181,6 +181,19 @@ function restoreScrollAnchor(stateScroll) {
   scroller.scrollTop = stateScroll.scrollY;
 }
 
+function scrollToLocationHash() {
+  const hash = location.hash;
+  if (!hash || /^#L\d+$/i.test(hash)) return false;
+  let id = hash.slice(1);
+  try {
+    id = decodeURIComponent(id);
+  } catch (_) {}
+  const el = document.getElementById(id);
+  if (!el) return false;
+  requestAnimationFrame(() => el.scrollIntoView({ block: "start" }));
+  return true;
+}
+
 function lineNeedle(rawLine) {
   return rawLine
     .replace(/^\s*#{1,6}\s+/, "")
@@ -237,7 +250,14 @@ export async function load(path, { line = null } = {}) {
   state.currentPath = path;
   document.title = path + " — markdown-serve";
   const lineQuery = line != null && line > 0 ? "?line=" + String(line) : "";
-  history.replaceState(null, "", "/" + encodePath(path) + lineQuery);
+  let hash = "";
+  if (!lineQuery) {
+    try {
+      const current = new URL(location.href).hash;
+      if (current && !/^#L\d+$/i.test(current)) hash = current;
+    } catch (_) {}
+  }
+  history.replaceState(null, "", "/" + encodePath(path) + lineQuery + hash);
   markActive(path);
   setPrintVisible(isRenderedKind(kind));
 
@@ -296,6 +316,8 @@ export async function load(path, { line = null } = {}) {
   await markBrokenLinks(path);
   if (line != null && line > 0) {
     requestAnimationFrame(() => scrollToSourceLine(data.text || "", line));
+  } else if (scrollToLocationHash()) {
+    // Definition links land on the symbol heading after the page HTML exists.
   } else if (scrollState) {
     restoreScrollAnchor(scrollState);
     requestAnimationFrame(() => {
@@ -314,4 +336,83 @@ export function initPrint() {
   printPageBtn.addEventListener("click", () => {
     window.print();
   });
+}
+
+function definedAtAnchor(target) {
+  const anchor = target instanceof Element ? target.closest("a[href]") : null;
+  if (!anchor || !content.contains(anchor)) return null;
+  const parent = anchor.parentElement;
+  if (!parent) return null;
+  const text = parent.textContent.replace(/\s+/g, " ").trim();
+  if (!text.startsWith("Defined at ")) return null;
+  return anchor;
+}
+
+export function initDefinedAtMenu() {
+  const menu = document.createElement("div");
+  menu.className = "defined-at-menu";
+  menu.hidden = true;
+  menu.setAttribute("role", "menu");
+  const item = document.createElement("button");
+  item.type = "button";
+  item.className = "defined-at-menu-item";
+  item.setAttribute("role", "menuitem");
+  item.textContent = "Copy file:line";
+  menu.appendChild(item);
+  document.body.appendChild(menu);
+  let ref = "";
+  let copiedTimer = 0;
+
+  function hide() {
+    menu.hidden = true;
+    ref = "";
+    window.clearTimeout(copiedTimer);
+    item.textContent = "Copy file:line";
+  }
+
+  content.addEventListener("contextmenu", (event) => {
+    const anchor = definedAtAnchor(event.target);
+    if (!anchor) {
+      hide();
+      return;
+    }
+    event.preventDefault();
+    ref = anchor.textContent.replace(/\s+/g, " ").trim();
+    item.textContent = "Copy file:line";
+    menu.hidden = false;
+    const pad = 8;
+    const rect = menu.getBoundingClientRect();
+    const x = Math.min(event.clientX, window.innerWidth - rect.width - pad);
+    const y = Math.min(event.clientY, window.innerHeight - rect.height - pad);
+    menu.style.left = Math.max(pad, x) + "px";
+    menu.style.top = Math.max(pad, y) + "px";
+  });
+
+  item.addEventListener("click", async () => {
+    if (!ref) return;
+    const value = ref;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch (_) {
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.setAttribute("aria-hidden", "true");
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    item.textContent = "Copied";
+    window.clearTimeout(copiedTimer);
+    copiedTimer = window.setTimeout(hide, 700);
+  });
+
+  document.addEventListener("mousedown", (event) => {
+    if (!menu.hidden && !menu.contains(event.target)) hide();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hide();
+  });
+  window.addEventListener("scroll", hide, true);
+  window.addEventListener("resize", hide);
 }

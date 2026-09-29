@@ -4,6 +4,7 @@ const PLANTUML_EXT = new Set(["puml", "plantuml", "pu", "iuml", "wsd"]);
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"]);
 const PDF_EXT = new Set(["pdf"]);
 const CSV_EXT = new Set(["csv", "tsv"]);
+const CODE_EXT = new Set(["hpp", "h", "hh", "hxx", "cpp", "cc", "cxx", "ipp", "inl"]);
 
 export function extOf(path) {
   const i = path.lastIndexOf(".");
@@ -18,12 +19,13 @@ export function fileKind(path) {
   if (PDF_EXT.has(ext)) return "pdf";
   if (IMAGE_EXT.has(ext)) return "image";
   if (CSV_EXT.has(ext)) return "csv";
+  if (CODE_EXT.has(ext)) return "code";
   return "other";
 }
 
 /** Kinds that render as a full HTML document worth printing. */
 export function isRenderedKind(kind) {
-  return kind === "markdown" || kind === "mermaid" || kind === "plantuml" || kind === "csv";
+  return kind === "markdown" || kind === "mermaid" || kind === "plantuml" || kind === "csv" || kind === "code";
 }
 
 export function encodePath(path) {

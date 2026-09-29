@@ -84,6 +84,14 @@ def render_markdown(text: str) -> str:
     return rendered
 
 
+def render_source_code(text: str) -> str:
+    """Highlight C/C++ source with the same Pygments classes as fenced code blocks."""
+    from pygments import highlight
+    from pygments.lexers import CppLexer
+
+    return highlight(text, CppLexer(), HtmlFormatter(cssclass="highlight", wrapcode=True))
+
+
 def pygments_css(*, light_style: str = "default", dark_style: str = "nord") -> str:
     light = HtmlFormatter(style=light_style).get_style_defs(".highlight")
     dark = HtmlFormatter(style=dark_style).get_style_defs('html[data-theme="dark"] .highlight')

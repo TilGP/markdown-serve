@@ -6,8 +6,10 @@ import asyncio
 import html
 import json
 import mimetypes
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -20,6 +22,10 @@ from watchdog.events import (
 )
 from watchdog.observers import Observer
 
+from markdown_serve.codedoc.builder import build
+from markdown_serve.codedoc.cache import find_doc_page, load_manifest, manifest_summary
+from markdown_serve.codedoc.registry import boot_status, code_suffixes, tools_status
+from markdown_serve.codedoc.xrefs import load_symbol_index, render_codedoc_page
 from markdown_serve.config import (
     font_stack_css,
     load_config,
@@ -28,7 +34,8 @@ from markdown_serve.config import (
     wrap_css_vars,
 )
 from markdown_serve.plantuml import PlantUMLError, render_plantuml_svg
-from markdown_serve.render import pygments_css, render_diagram, render_markdown
+from markdown_serve.project_config import load_project_config
+from markdown_serve.render import pygments_css, render_diagram, render_markdown, render_source_code
 from markdown_serve.search import search_markdown
 
 MARKDOWN_SUFFIXES = {".md", ".markdown", ".mdown", ".mkd"}
@@ -41,7 +48,8 @@ IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ic
 PDF_SUFFIXES = {".pdf"}
 CSV_SUFFIXES = {".csv", ".tsv"}
 SIDEBAR_SUFFIXES = TEXT_SUFFIXES | IMAGE_SUFFIXES | PDF_SUFFIXES | CSV_SUFFIXES
-SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".tox", ".mypy_cache"}
+CODE_SUFFIXES = code_suffixes()
+SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".tox", ".mypy_cache", ".cache"}
 # inotify reports plain reads (our own render/search) as open/close events;
 # rebroadcasting those would make the browser reload in a loop.
 READ_ONLY_EVENT_TYPES = {EVENT_TYPE_OPENED, EVENT_TYPE_CLOSED_NO_WRITE}
@@ -61,10 +69,16 @@ def _wants_document(accept: str) -> bool:
 
 
 class _ReloadHandler(FileSystemEventHandler):
-    def __init__(self, loop: asyncio.AbstractEventLoop, queue: asyncio.Queue[str]) -> None:
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        queue: asyncio.Queue[str],
+        skip_rel,
+    ) -> None:
         super().__init__()
         self._loop = loop
         self._queue = queue
+        self._skip_rel = skip_rel
 
     def on_any_event(self, event: FileSystemEvent) -> None:
         if event.is_directory or event.event_type in READ_ONLY_EVENT_TYPES:
@@ -73,7 +87,7 @@ class _ReloadHandler(FileSystemEventHandler):
         if isinstance(src, bytes):
             src = src.decode()
         path = Path(src)
-        if any(part in SKIP_DIRS for part in path.parts):
+        if any(part in SKIP_DIRS for part in path.parts) or self._skip_rel(path):
             return
         self._loop.call_soon_threadsafe(self._queue.put_nowait, path.as_posix())
 
@@ -100,16 +114,43 @@ class ConnectionManager:
             self._clients.discard(client)
 
 
+class _CodeDocJob:
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.running = False
+        self.cancel = threading.Event()
+        self.thread: threading.Thread | None = None
+        self.progress: dict = {
+            "phase": "idle",
+            "done": 0,
+            "total": 0,
+            "current": "",
+            "errors": [],
+            "language": "",
+        }
+
+
 def create_app(root: Path) -> FastAPI:
     root = root.resolve()
     manager = ConnectionManager()
     event_queue: asyncio.Queue[str] = asyncio.Queue()
     observer = Observer()
+    project_cfg = load_project_config(root)
+    doc_cache = project_cfg["codedoc"]["cache_dir"]
+    job = _CodeDocJob()
+
+    def _skip_rel(path: Path) -> bool:
+        try:
+            rel = path.resolve().relative_to(root).as_posix()
+        except (OSError, ValueError):
+            return False
+        return rel == doc_cache or rel.startswith(doc_cache + "/")
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         loop = asyncio.get_running_loop()
-        handler = _ReloadHandler(loop, event_queue)
+        app.state.loop = loop
+        handler = _ReloadHandler(loop, event_queue, _skip_rel)
         observer.schedule(handler, str(root), recursive=True)
         observer.start()
 
@@ -118,8 +159,14 @@ def create_app(root: Path) -> FastAPI:
                 path = await event_queue.get()
                 # Debounce bursts of filesystem events
                 await asyncio.sleep(0.15)
+                codedoc_done = Path(path).name == "__codedoc__"
                 while not event_queue.empty():
                     path = event_queue.get_nowait()
+                    codedoc_done = codedoc_done or Path(path).name == "__codedoc__"
+                if codedoc_done:
+                    await manager.broadcast("__codedoc__")
+                if Path(path).name == "__codedoc__":
+                    continue
                 try:
                     rel = Path(path).resolve().relative_to(root).as_posix()
                 except ValueError:
@@ -137,6 +184,8 @@ def create_app(root: Path) -> FastAPI:
     app = FastAPI(title="markdown-serve", lifespan=lifespan)
     app.state.root = root
     app.state.manager = manager
+    app.state.codedoc_job = job
+    app.state.loop = None
 
     def resolve_under_root(rel: str) -> Path:
         # Strip leading slashes; treat as path relative to root
@@ -154,9 +203,12 @@ def create_app(root: Path) -> FastAPI:
                 continue
             if path.suffix.lower() not in SIDEBAR_SUFFIXES:
                 continue
-            if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
+            rel = path.relative_to(root).as_posix()
+            if any(part in SKIP_DIRS for part in rel.split("/")):
                 continue
-            files.append(path.relative_to(root).as_posix())
+            if rel == doc_cache or rel.startswith(doc_cache + "/"):
+                continue
+            files.append(rel)
         return files
 
     @app.websocket("/__ws")
@@ -187,10 +239,28 @@ def create_app(root: Path) -> FastAPI:
         path = resolve_under_root(file_path)
         return {"path": file_path, "exists": path.exists()}
 
+    def _code_doc_html(rel: str, source_text: str) -> str:
+        page = find_doc_page(root, rel)
+        if page is None or not page.is_file():
+            hint = (
+                "> No documentation cache for this file. "
+                "Build it from the Code docs panel.\n\n"
+            )
+            return render_markdown(hint) + render_source_code(source_text)
+        built = datetime.fromtimestamp(page.stat().st_mtime, timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        banner = (
+            f"> Generated code documentation for `{rel}`. "
+            f"[View source](/__file/{rel}). Built {built}.\n\n"
+        )
+        return render_codedoc_page(banner + page.read_text(encoding="utf-8"), rel, load_symbol_index(root))
+
     @app.get("/__api/render/{file_path:path}")
     async def api_render(file_path: str) -> dict[str, str]:
         path = resolve_under_root(file_path)
         suffix = path.suffix.lower()
+        if path.is_file() and suffix in CODE_SUFFIXES:
+            text = path.read_text(encoding="utf-8", errors="replace")
+            return {"path": file_path, "html": _code_doc_html(file_path, text), "text": text}
         if not path.is_file() or suffix not in TEXT_SUFFIXES:
             raise HTTPException(status_code=404, detail="Renderable file not found")
         text = path.read_text(encoding="utf-8")
@@ -201,6 +271,92 @@ def create_app(root: Path) -> FastAPI:
         else:
             rendered = render_markdown(text)
         return {"path": file_path, "html": rendered, "text": text}
+
+    def _codedoc_status() -> dict:
+        cfg = load_project_config(root)
+        manifest = load_manifest(root / cfg["codedoc"]["cache_dir"])
+        return {
+            "running": job.running,
+            "progress": job.progress,
+            "manifest": manifest_summary(manifest),
+            "tools": tools_status(root, cfg),
+            "config": {"languages": cfg["codedoc"]["languages"], "ignore": cfg["ignore"]},
+        }
+
+    @app.get("/__api/codedoc/status")
+    async def api_codedoc_status() -> dict:
+        return _codedoc_status()
+
+    @app.get("/__api/codedoc/files")
+    async def api_codedoc_files() -> list[str]:
+        cfg = load_project_config(root)
+        manifest = load_manifest(root / cfg["codedoc"]["cache_dir"])
+        files: set[str] = set()
+        for payload in (manifest.get("languages") or {}).values():
+            files.update((payload.get("files") or {}).keys())
+        return sorted(files)
+
+    @app.post("/__api/codedoc/build")
+    async def api_codedoc_build(request: Request) -> dict:
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        if not isinstance(body, dict):
+            body = {}
+        force = bool(body.get("force"))
+        languages = body.get("languages")
+        if languages is not None and not isinstance(languages, list):
+            raise HTTPException(status_code=400, detail="languages must be a list")
+        with job.lock:
+            if job.running:
+                raise HTTPException(status_code=409, detail="A code-doc build is already running")
+            job.running = True
+            job.cancel = threading.Event()
+            job.progress = {
+                "phase": "start",
+                "done": 0,
+                "total": 0,
+                "current": "",
+                "errors": [],
+                "language": "",
+            }
+
+        def run() -> None:
+            def on_progress(progress) -> None:
+                job.progress = {
+                    "phase": progress.phase,
+                    "done": progress.done,
+                    "total": progress.total,
+                    "current": progress.current,
+                    "errors": list(progress.errors),
+                    "language": progress.language,
+                }
+
+            try:
+                build(
+                    root,
+                    languages=languages,
+                    progress=on_progress,
+                    cancel=job.cancel,
+                    force=force,
+                )
+            except Exception as exc:
+                job.progress = {**job.progress, "phase": "error", "errors": [*job.progress["errors"], str(exc)]}
+            finally:
+                job.running = False
+                loop = app.state.loop
+                if loop is not None:
+                    loop.call_soon_threadsafe(event_queue.put_nowait, str(root / "__codedoc__"))
+
+        job.thread = threading.Thread(target=run, name="codedoc-build", daemon=True)
+        job.thread.start()
+        return _codedoc_status()
+
+    @app.post("/__api/codedoc/cancel")
+    async def api_codedoc_cancel() -> dict:
+        job.cancel.set()
+        return _codedoc_status()
 
     @app.post("/__api/plantuml")
     async def api_plantuml(request: Request) -> Response:
@@ -255,7 +411,7 @@ def create_app(root: Path) -> FastAPI:
             (f for f in ("README.md", "readme.md", "index.md", "INDEX.md") if f in md_files),
             md_files[0] if md_files else (files[0] if files else None),
         )
-        return page_shell(root.name, preferred or "", files)
+        return page_shell(root, root.name, preferred or "", files)
 
     @app.get("/{file_path:path}")
     async def serve_path(file_path: str, request: Request) -> Response:
@@ -267,17 +423,17 @@ def create_app(root: Path) -> FastAPI:
             files = list_sidebar_files()
             under = [f for f in files if f.startswith(prefix) or rel == "."]
             preferred = under[0] if under else ""
-            return HTMLResponse(page_shell(root.name, preferred, files))
+            return HTMLResponse(page_shell(root, root.name, preferred, files))
 
         if not path.is_file():
             raise HTTPException(status_code=404, detail="Not found")
 
         suffix = path.suffix.lower()
         accept = request.headers.get("accept", "")
-        if suffix in SIDEBAR_SUFFIXES and _wants_document(accept):
+        if suffix in CODE_SUFFIXES | SIDEBAR_SUFFIXES and _wants_document(accept):
             files = list_sidebar_files()
             rel = path.relative_to(root).as_posix()
-            return HTMLResponse(page_shell(root.name, rel, files))
+            return HTMLResponse(page_shell(root, root.name, rel, files))
 
         # Linked assets (markdown images, css, fonts, etc.)
         media_type, _ = mimetypes.guess_type(str(path))
@@ -310,7 +466,7 @@ def ui_asset_response(asset_path: str) -> Response:
     )
 
 
-def page_shell(title: str, active: str, files: list[str]) -> str:
+def page_shell(root: Path, title: str, active: str, files: list[str]) -> str:
     cfg = public_config()
     boot = json.dumps(
         {
@@ -323,8 +479,10 @@ def page_shell(title: str, active: str, files: list[str]) -> str:
                 "sidebars": cfg["sidebars"],
                 "text": cfg["text"],
                 "tables": cfg["tables"],
+                "codedoc": cfg["codedoc"],
                 "available_styles": cfg["available_styles"],
             },
+            "codedoc": boot_status(root, load_project_config(root)),
         },
         ensure_ascii=False,
     ).replace("<", "\\u003c")
