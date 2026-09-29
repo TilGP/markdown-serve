@@ -12,7 +12,16 @@ def test_loads_markdown_sidebar_and_diagrams(page: Page) -> None:
     page.locator("#nav summary").filter(has_text="docs").click()
     expect(page.locator("#nav a.nav-link", has_text="install.md")).to_be_visible()
     expect(page.locator("#content .diagram-mermaid svg")).to_be_visible()
+    expect(page.locator("#content .diagram-excalidraw svg")).to_be_visible()
+    expect(page.locator("#content .diagram-excalidraw text")).to_have_text("Sketch")
     expect(page.locator("#toc a", has_text="Diagrams")).to_be_visible()
+
+
+def test_excalidraw_file_renders(page: Page) -> None:
+    page.goto("/diagrams/box.excalidraw")
+    expect(page.locator("#status")).to_have_class("live", timeout=15_000)
+    expect(page.locator("#content .diagram-excalidraw svg")).to_be_visible()
+    expect(page.locator("#nav a.nav-link.active").filter(has_text="box.excalidraw")).to_be_visible()
 
 
 def test_theme_toggle_switches_data_theme(page: Page) -> None:

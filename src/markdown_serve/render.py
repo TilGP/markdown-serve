@@ -36,20 +36,20 @@ EXTENSION_CONFIGS = {
 
 # Extract diagram fences before Markdown/codehilite can rewrite them.
 DIAGRAM_FENCE_RE = re.compile(
-    r"^```(mermaid|plantuml|puml)[ \t]*\n(.*?)(?:\n)?^```[ \t]*$",
+    r"^```(mermaid|plantuml|puml|excalidraw)[ \t]*\n(.*?)(?:\n)?^```[ \t]*$",
     re.MULTILINE | re.DOTALL | re.IGNORECASE,
 )
 
 
 def render_diagram(source: str, kind: str) -> str:
-    """Wrap raw diagram source so the browser can render it (Mermaid/PlantUML).
+    """Wrap raw diagram source so the browser can render it.
 
-    Also used for standalone ``.mmd`` / ``.puml`` files opened directly.
+    Also used for standalone diagram files opened directly.
     """
     kind = kind.lower()
     if kind == "puml":
         kind = "plantuml"
-    if kind not in {"mermaid", "plantuml"}:
+    if kind not in {"mermaid", "plantuml", "excalidraw"}:
         raise ValueError(f"Unknown diagram kind: {kind}")
     body = html.escape(source.strip("\n"))
     return (

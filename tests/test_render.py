@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html as html_lib
 from textwrap import dedent
 
 import pytest
@@ -183,8 +184,9 @@ def test_render_markdown_html(markdown: str, expected: str) -> None:
         ("mermaid", "mermaid", "flowchart LR\n  A --> B"),
         ("plantuml", "plantuml", "@startuml\nAlice -> Bob\n@enduml"),
         ("puml", "plantuml", "@startuml\nA -> B\n@enduml"),
+        ("excalidraw", "excalidraw", '{"type":"excalidraw","elements":[]}'),
     ],
-    ids=["mermaid", "plantuml", "puml-alias"],
+    ids=["mermaid", "plantuml", "puml-alias", "excalidraw"],
 )
 def test_render_diagram_fences(fence: str, kind: str, source: str) -> None:
     markdown = f"```{fence}\n{source}\n```"
@@ -193,19 +195,20 @@ def test_render_diagram_fences(fence: str, kind: str, source: str) -> None:
     assert f'class="diagram diagram-{kind}"' in html
     assert '<pre class="diagram-source">' in html
     for line in source.splitlines():
-        escaped = (
-            line.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-        )
-        assert escaped in html
+        assert html_lib.escape(line) in html
     assert "DIAGRAMPLACEHOLDER" not in html
     assert "```" not in html
 
 
 @pytest.mark.parametrize(
     ("kind", "expected_kind"),
-    [("mermaid", "mermaid"), ("plantuml", "plantuml"), ("puml", "plantuml"), ("Mermaid", "mermaid")],
+    [
+        ("mermaid", "mermaid"),
+        ("plantuml", "plantuml"),
+        ("puml", "plantuml"),
+        ("Mermaid", "mermaid"),
+        ("excalidraw", "excalidraw"),
+    ],
 )
 def test_render_diagram_standalone(kind: str, expected_kind: str) -> None:
     source = "\nA -> B: <hi>\n\n"

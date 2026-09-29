@@ -1,13 +1,14 @@
 [project]
 name = "markdown-serve"
 version = "0.1.0"
-description = "Local live Markdown viewer with file tree, hot reload, and offline Mermaid/PlantUML"
+description = "Local live Markdown viewer with file tree, hot reload, and offline Mermaid/PlantUML/Excalidraw"
 readme = "README.md"
 authors = [
     { name = "Til Georg Pockrandt", email = "til.pockrandt@check24.de" }
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "excalidraw-render>=0.3.0",
     "fastapi>=0.141.1",
     "markdown>=3.10.3",
     "mdx-truly-sane-lists>=1.3",

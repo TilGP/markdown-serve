@@ -24,12 +24,12 @@ Point it at a notes tree, a docs repo, or any project with `.md` files. You get 
 | **Broken links** | Local links to missing files show in orange with a ⚠ marker. |
 | **Live preview** | Edits on disk refresh the browser over a WebSocket. Save and the page updates. |
 | **Real rendering** | Nested lists (2-space indent), tables, syntax-highlighted code ([Pygments](https://pygments.org/)), images, linked assets, PDF iframe preview. |
-| **Diagrams** | [`mermaid`](https://mermaid.js.org/) and [`plantuml`](https://plantuml.com/) / `puml` fences render in place — Mermaid in the browser, PlantUML via local Java. Standalone `.mmd` / `.puml` files open directly as a rendered diagram. |
+| **Diagrams** | [`mermaid`](https://mermaid.js.org/), [`plantuml`](https://plantuml.com/) / `puml`, and [`excalidraw`](https://excalidraw.com/) fences render in place — Mermaid in the browser, PlantUML via local Java, Excalidraw via [excalidraw-render](https://pypi.org/project/excalidraw-render/). Standalone `.mmd` / `.puml` / `.excalidraw` files open directly as a rendered diagram. |
 | **CSV / TSV** | `.csv` / `.tsv` files open as a table with controls for delimiter, header lines to skip, and footer lines to skip. |
 | **Themes** | Light/dark toggle (persisted). **Right-click the theme button** to show a Pygments style picker for the current theme (code highlighting) plus line-length / wrap settings for text and tables. |
-| **Offline-first** | UI, Mermaid, and PlantUML jar ship with the project. Works on a plane. |
+| **Offline-first** | UI, Mermaid, the PlantUML jar, and excalidraw-render ship with the project. Works on a plane. |
 
-Wide tables and PlantUML SVGs expand the content panel instead of getting squashed; paragraphs keep wrapping at the configured line length.
+Wide tables, PlantUML SVGs, and Excalidraw SVGs expand the content panel instead of getting squashed; paragraphs keep wrapping at the configured line length.
 
 ## What you need
 
@@ -120,9 +120,17 @@ flowchart LR
 Alice -> Bob: hello
 @enduml
 ```
+
+```excalidraw
+{
+  "type": "excalidraw",
+  "version": 2,
+  "elements": []
+}
+```
 ````
 
-[Mermaid](https://mermaid.js.org/) uses the vendored browser script. [PlantUML](https://plantuml.com/) runs locally (`java -jar` on the bundled LGPL jar, or a `plantuml` binary on `PATH`).
+[Mermaid](https://mermaid.js.org/) uses the vendored browser script. [PlantUML](https://plantuml.com/) runs locally (`java -jar` on the bundled LGPL jar, or a `plantuml` binary on `PATH`). [Excalidraw](https://excalidraw.com/) scenes are rendered to SVG by [excalidraw-render](https://pypi.org/project/excalidraw-render/) (clean vectors, not the hand-drawn look).
 
 Hover a diagram or image and click the enlarge button for a fullscreen zoom/pan view. For very large diagrams, the bitmap button (or `b`) rasterizes the SVG so panning and zooming stay fast; press it again to return to crisp vector rendering.
 
@@ -134,6 +142,7 @@ Diagram source files show up in the sidebar and open as a single rendered diagra
 |------|------------|
 | Mermaid | `.mmd`, `.mermaid` |
 | PlantUML | `.puml`, `.plantuml`, `.pu`, `.iuml`, `.wsd` |
+| Excalidraw | `.excalidraw` |
 
 PlantUML files without `@startuml` / `@enduml` are wrapped automatically. Content search covers these files too.
 
@@ -232,6 +241,7 @@ Vendored under `src/markdown_serve/assets/vendor/`:
 
 - **[Mermaid](https://mermaid.js.org/)** (MIT) — `mermaid.min.js`
 - **[PlantUML](https://plantuml.com/)** (LGPL jar, unmodified) — `plantuml.jar`
+- **[excalidraw-render](https://pypi.org/project/excalidraw-render/)** (MIT) — Python dependency; renders `.excalidraw` JSON to SVG
 
 Code blocks are highlighted with **[Pygments](https://pygments.org/)** (Python dependency, not vendored as a static asset).
 

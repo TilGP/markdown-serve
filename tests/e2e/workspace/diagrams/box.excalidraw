@@ -1,0 +1,17 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "elements": [
+    {
+      "id": "r1",
+      "type": "rectangle",
+      "x": 10,
+      "y": 10,
+      "width": 80,
+      "height": 40,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#a5d8ff",
+      "fillStyle": "solid"
+    }
+  ]
+}

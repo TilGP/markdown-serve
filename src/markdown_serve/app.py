@@ -24,7 +24,12 @@ from watchdog.observers import Observer
 
 from markdown_serve.codedoc.builder import build
 from markdown_serve.codedoc.cache import find_doc_page, load_manifest, manifest_summary
-from markdown_serve.codedoc.registry import active_languages, boot_status, code_suffixes, tools_status
+from markdown_serve.codedoc.registry import (
+    active_languages,
+    boot_status,
+    code_suffixes,
+    tools_status,
+)
 from markdown_serve.codedoc.xrefs import load_symbol_index, render_codedoc_page
 from markdown_serve.config import (
     font_stack_css,
@@ -33,23 +38,48 @@ from markdown_serve.config import (
     update_config,
     wrap_css_vars,
 )
+from markdown_serve.excalidraw import ExcalidrawError, render_excalidraw_svg
 from markdown_serve.plantuml import PlantUMLError, render_plantuml_svg
 from markdown_serve.project_config import load_project_config
-from markdown_serve.render import pygments_css, render_diagram, render_markdown, render_source_code
+from markdown_serve.render import (
+    pygments_css,
+    render_diagram,
+    render_markdown,
+    render_source_code,
+)
 from markdown_serve.search import search_markdown
 
 MARKDOWN_SUFFIXES = {".md", ".markdown", ".mdown", ".mkd"}
 MERMAID_SUFFIXES = {".mmd", ".mermaid"}
 PLANTUML_SUFFIXES = {".puml", ".plantuml", ".pu", ".iuml", ".wsd"}
-DIAGRAM_SUFFIXES = MERMAID_SUFFIXES | PLANTUML_SUFFIXES
+EXCALIDRAW_SUFFIXES = {".excalidraw"}
+DIAGRAM_SUFFIXES = MERMAID_SUFFIXES | PLANTUML_SUFFIXES | EXCALIDRAW_SUFFIXES
 # Text files rendered via /__api/render (and covered by content search).
 TEXT_SUFFIXES = MARKDOWN_SUFFIXES | DIAGRAM_SUFFIXES
-IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico", ".avif"}
+IMAGE_SUFFIXES = {
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".svg",
+    ".bmp",
+    ".ico",
+    ".avif",
+}
 PDF_SUFFIXES = {".pdf"}
 CSV_SUFFIXES = {".csv", ".tsv"}
 SIDEBAR_SUFFIXES = TEXT_SUFFIXES | IMAGE_SUFFIXES | PDF_SUFFIXES | CSV_SUFFIXES
 CODE_SUFFIXES = code_suffixes()
-SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".tox", ".mypy_cache", ".cache"}
+SKIP_DIRS = {
+    ".git",
+    ".venv",
+    "node_modules",
+    "__pycache__",
+    ".tox",
+    ".mypy_cache",
+    ".cache",
+}
 # inotify reports plain reads (our own render/search) as open/close events;
 # rebroadcasting those would make the browser reload in a loop.
 READ_ONLY_EVENT_TYPES = {EVENT_TYPE_OPENED, EVENT_TYPE_CLOSED_NO_WRITE}
@@ -63,7 +93,10 @@ def _wants_document(accept: str) -> bool:
         mime = part.split(";")[0].strip().lower()
         if mime == "text/html":
             return True
-        if mime.startswith("image/") or mime in {"application/pdf", "application/octet-stream"}:
+        if mime.startswith("image/") or mime in {
+            "application/pdf",
+            "application/octet-stream",
+        }:
             return False
     return "text/html" in accept.lower()
 
@@ -247,12 +280,16 @@ def create_app(root: Path) -> FastAPI:
                 "Build it from the Code docs panel.\n\n"
             )
             return render_markdown(hint) + render_source_code(source_text)
-        built = datetime.fromtimestamp(page.stat().st_mtime, timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        built = datetime.fromtimestamp(page.stat().st_mtime, timezone.utc).strftime(
+            "%Y-%m-%d %H:%M UTC"
+        )
         banner = (
             f"> Generated code documentation for `{rel}`. "
             f"[View source](/__file/{rel}). Built {built}.\n\n"
         )
-        return render_codedoc_page(banner + page.read_text(encoding="utf-8"), rel, load_symbol_index(root))
+        return render_codedoc_page(
+            banner + page.read_text(encoding="utf-8"), rel, load_symbol_index(root)
+        )
 
     @app.get("/__api/render/{file_path:path}")
     async def api_render(file_path: str) -> dict[str, str]:
@@ -260,7 +297,11 @@ def create_app(root: Path) -> FastAPI:
         suffix = path.suffix.lower()
         if path.is_file() and suffix in CODE_SUFFIXES:
             text = path.read_text(encoding="utf-8", errors="replace")
-            return {"path": file_path, "html": _code_doc_html(file_path, text), "text": text}
+            return {
+                "path": file_path,
+                "html": _code_doc_html(file_path, text),
+                "text": text,
+            }
         if not path.is_file() or suffix not in TEXT_SUFFIXES:
             raise HTTPException(status_code=404, detail="Renderable file not found")
         text = path.read_text(encoding="utf-8")
@@ -268,6 +309,8 @@ def create_app(root: Path) -> FastAPI:
             rendered = render_diagram(text, "mermaid")
         elif suffix in PLANTUML_SUFFIXES:
             rendered = render_diagram(text, "plantuml")
+        elif suffix in EXCALIDRAW_SUFFIXES:
+            rendered = render_diagram(text, "excalidraw")
         else:
             rendered = render_markdown(text)
         return {"path": file_path, "html": rendered, "text": text}
@@ -280,7 +323,10 @@ def create_app(root: Path) -> FastAPI:
             "progress": job.progress,
             "manifest": manifest_summary(manifest),
             "tools": tools_status(root, cfg),
-            "config": {"languages": active_languages(root, cfg), "ignore": cfg["ignore"]},
+            "config": {
+                "languages": active_languages(root, cfg),
+                "ignore": cfg["ignore"],
+            },
         }
 
     @app.get("/__api/codedoc/status")
@@ -310,7 +356,9 @@ def create_app(root: Path) -> FastAPI:
             raise HTTPException(status_code=400, detail="languages must be a list")
         with job.lock:
             if job.running:
-                raise HTTPException(status_code=409, detail="A code-doc build is already running")
+                raise HTTPException(
+                    status_code=409, detail="A code-doc build is already running"
+                )
             job.running = True
             job.cancel = threading.Event()
             job.progress = {
@@ -342,12 +390,18 @@ def create_app(root: Path) -> FastAPI:
                     force=force,
                 )
             except Exception as exc:
-                job.progress = {**job.progress, "phase": "error", "errors": [*job.progress["errors"], str(exc)]}
+                job.progress = {
+                    **job.progress,
+                    "phase": "error",
+                    "errors": [*job.progress["errors"], str(exc)],
+                }
             finally:
                 job.running = False
                 loop = app.state.loop
                 if loop is not None:
-                    loop.call_soon_threadsafe(event_queue.put_nowait, str(root / "__codedoc__"))
+                    loop.call_soon_threadsafe(
+                        event_queue.put_nowait, str(root / "__codedoc__")
+                    )
 
         job.thread = threading.Thread(target=run, name="codedoc-build", daemon=True)
         job.thread.start()
@@ -364,7 +418,24 @@ def create_app(root: Path) -> FastAPI:
         try:
             svg = render_plantuml_svg(source)
         except PlantUMLError as exc:
-            return Response(content=str(exc), status_code=400, media_type="text/plain; charset=utf-8")
+            return Response(
+                content=str(exc),
+                status_code=400,
+                media_type="text/plain; charset=utf-8",
+            )
+        return Response(content=svg, media_type="image/svg+xml; charset=utf-8")
+
+    @app.post("/__api/excalidraw")
+    async def api_excalidraw(request: Request) -> Response:
+        source = (await request.body()).decode("utf-8", errors="replace")
+        try:
+            svg = render_excalidraw_svg(source)
+        except ExcalidrawError as exc:
+            return Response(
+                content=str(exc),
+                status_code=400,
+                media_type="text/plain; charset=utf-8",
+            )
         return Response(content=svg, media_type="image/svg+xml; charset=utf-8")
 
     @app.get("/__api/config")
@@ -388,7 +459,10 @@ def create_app(root: Path) -> FastAPI:
         if not path.is_file():
             raise HTTPException(status_code=404, detail="Not found")
         media_type, _ = mimetypes.guess_type(str(path))
-        return Response(content=path.read_bytes(), media_type=media_type or "application/octet-stream")
+        return Response(
+            content=path.read_bytes(),
+            media_type=media_type or "application/octet-stream",
+        )
 
     @app.get("/__assets/pygments.css")
     async def pygments_stylesheet() -> Response:
@@ -408,7 +482,11 @@ def create_app(root: Path) -> FastAPI:
         files = list_sidebar_files()
         md_files = [f for f in files if Path(f).suffix.lower() in MARKDOWN_SUFFIXES]
         preferred = next(
-            (f for f in ("README.md", "readme.md", "index.md", "INDEX.md") if f in md_files),
+            (
+                f
+                for f in ("README.md", "readme.md", "index.md", "INDEX.md")
+                if f in md_files
+            ),
             md_files[0] if md_files else (files[0] if files else None),
         )
         return page_shell(root, root.name, preferred or "", files)
@@ -437,14 +515,26 @@ def create_app(root: Path) -> FastAPI:
 
         # Linked assets (markdown images, css, fonts, etc.)
         media_type, _ = mimetypes.guess_type(str(path))
-        return Response(content=path.read_bytes(), media_type=media_type or "application/octet-stream")
+        return Response(
+            content=path.read_bytes(),
+            media_type=media_type or "application/octet-stream",
+        )
 
     return app
 
 
-
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
-_UI_ASSET_SUFFIXES = {".js", ".css", ".mjs", ".map", ".woff", ".woff2", ".ttf", ".otf", ".png"}
+_UI_ASSET_SUFFIXES = {
+    ".js",
+    ".css",
+    ".mjs",
+    ".map",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".otf",
+    ".png",
+}
 
 
 def ui_asset_response(asset_path: str) -> Response:
@@ -488,8 +578,7 @@ def page_shell(root: Path, title: str, active: str, files: list[str]) -> str:
     ).replace("<", "\\u003c")
     template = (ASSETS_DIR / "index.html").read_text(encoding="utf-8")
     return (
-        template
-        .replace("__TITLE__", html.escape(title))
+        template.replace("__TITLE__", html.escape(title))
         .replace("__THEME__", html.escape(cfg["theme"]))
         .replace("__FONT_SANS__", font_stack_css(cfg["fonts"]["sans"]))
         .replace("__FONT_MONO__", font_stack_css(cfg["fonts"]["mono"]))

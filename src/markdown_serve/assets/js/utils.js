@@ -1,6 +1,7 @@
 const MARKDOWN_EXT = new Set(["md", "markdown", "mdown", "mkd"]);
 const MERMAID_EXT = new Set(["mmd", "mermaid"]);
 const PLANTUML_EXT = new Set(["puml", "plantuml", "pu", "iuml", "wsd"]);
+const EXCALIDRAW_EXT = new Set(["excalidraw"]);
 const IMAGE_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif"]);
 const PDF_EXT = new Set(["pdf"]);
 const CSV_EXT = new Set(["csv", "tsv"]);
@@ -16,6 +17,7 @@ export function fileKind(path) {
   if (MARKDOWN_EXT.has(ext)) return "markdown";
   if (MERMAID_EXT.has(ext)) return "mermaid";
   if (PLANTUML_EXT.has(ext)) return "plantuml";
+  if (EXCALIDRAW_EXT.has(ext)) return "excalidraw";
   if (PDF_EXT.has(ext)) return "pdf";
   if (IMAGE_EXT.has(ext)) return "image";
   if (CSV_EXT.has(ext)) return "csv";
@@ -25,7 +27,7 @@ export function fileKind(path) {
 
 /** Kinds that render as a full HTML document worth printing. */
 export function isRenderedKind(kind) {
-  return kind === "markdown" || kind === "mermaid" || kind === "plantuml" || kind === "csv" || kind === "code";
+  return kind === "markdown" || kind === "mermaid" || kind === "plantuml" || kind === "excalidraw" || kind === "csv" || kind === "code";
 }
 
 export function encodePath(path) {

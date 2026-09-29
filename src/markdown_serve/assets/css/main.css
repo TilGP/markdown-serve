@@ -425,13 +425,15 @@ main {
 }
 .diagram .diagram-source { display: none; }
 .diagram img, .diagram svg { max-width: 100%; height: auto; }
-.diagram-plantuml {
+.diagram-plantuml,
+.diagram-excalidraw {
   width: max-content;
   max-width: none;
   min-width: 100%;
   box-sizing: border-box;
 }
-.diagram-plantuml svg {
+.diagram-plantuml svg,
+.diagram-excalidraw svg {
   max-width: none;
   width: auto;
   height: auto;

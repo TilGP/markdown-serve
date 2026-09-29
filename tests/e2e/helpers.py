@@ -11,12 +11,12 @@ def wait_for_preview(page: Page) -> None:
     page.wait_for_function(
         """() => {
           const mermaid = [...document.querySelectorAll(".diagram-mermaid")];
-          const plantuml = [...document.querySelectorAll(".diagram-plantuml")];
+          const server = [...document.querySelectorAll(".diagram-plantuml, .diagram-excalidraw")];
           const mermaidReady = mermaid.every((node) => node.querySelector("svg"));
-          const plantumlReady = plantuml.every(
+          const serverReady = server.every(
             (node) => node.querySelector("svg") || node.querySelector(".diagram-error")
           );
-          return mermaidReady && plantumlReady && !document.querySelector(".diagram-skeleton");
+          return mermaidReady && serverReady && !document.querySelector(".diagram-skeleton");
         }""",
         timeout=30_000,
     )

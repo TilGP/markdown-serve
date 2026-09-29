@@ -26,4 +26,35 @@ Alice -> Bob: hello
 @enduml
 ```
 
-Mermaid renders in the browser from a vendored script. PlantUML is rendered locally via Java.
+```excalidraw
+{
+  "type": "excalidraw",
+  "version": 2,
+  "elements": [
+    {
+      "id": "r1",
+      "type": "rectangle",
+      "x": 10,
+      "y": 10,
+      "width": 120,
+      "height": 48,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "#a5d8ff",
+      "fillStyle": "solid"
+    },
+    {
+      "id": "t1",
+      "type": "text",
+      "x": 28,
+      "y": 22,
+      "width": 84,
+      "height": 24,
+      "text": "Sketch",
+      "fontSize": 20,
+      "fontFamily": 1
+    }
+  ]
+}
+```
+
+Mermaid renders in the browser from a vendored script. PlantUML is rendered locally via Java. Excalidraw is rendered locally to SVG.

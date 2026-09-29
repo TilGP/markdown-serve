@@ -7,10 +7,10 @@ import { markActive } from "./nav.js";
 import { clearToc, updateToc } from "./toc.js";
 import {
   fitWideTables,
-  preparePlantumlPlaceholders,
+  prepareServerDiagramPlaceholders,
   renderDiagrams,
-  resetPlantumlCacheIfNeeded,
-  snapshotPlantumlLayout,
+  resetServerDiagramCacheIfNeeded,
+  snapshotServerDiagrams,
 } from "./diagrams.js";
 import { enhanceZoomables } from "./lightbox.js";
 import { renderCsvTable } from "./csv.js";
@@ -304,11 +304,11 @@ export async function load(path, { line = null } = {}) {
     return;
   }
   const data = await res.json();
-  resetPlantumlCacheIfNeeded(path);
+  resetServerDiagramCacheIfNeeded(path);
   const scrollState = preserveScroll ? captureScrollAnchor() : null;
-  const plantumlSnapshots = snapshotPlantumlLayout();
+  const diagramSnapshots = snapshotServerDiagrams();
   content.innerHTML = data.html;
-  preparePlantumlPlaceholders(plantumlSnapshots);
+  prepareServerDiagramPlaceholders(diagramSnapshots);
   updateToc();
   await renderDiagrams();
   enhanceZoomables();

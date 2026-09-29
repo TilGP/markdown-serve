@@ -33,6 +33,7 @@ def workspace(tmp_path: Path) -> Path:
     (tmp_path / "README.md").write_text("# Hi\n", encoding="utf-8")
     (tmp_path / "flow.mmd").write_text("flowchart LR\n  A --> B\n", encoding="utf-8")
     (tmp_path / "seq.puml").write_text("@startuml\nA -> B\n@enduml\n", encoding="utf-8")
+    (tmp_path / "box.excalidraw").write_text('{"type":"excalidraw","elements":[]}\n', encoding="utf-8")
     (tmp_path / "notes.txt").write_text("ignored\n", encoding="utf-8")
     return tmp_path
 
@@ -40,12 +41,12 @@ def workspace(tmp_path: Path) -> Path:
 def test_diagram_files_listed_in_sidebar(workspace: Path) -> None:
     app = create_app(workspace)
     files = _run(_endpoint(app, "/__api/files")())
-    assert files == ["README.md", "flow.mmd", "seq.puml"]
+    assert files == ["README.md", "box.excalidraw", "flow.mmd", "seq.puml"]
 
 
 @pytest.mark.parametrize(
     ("name", "kind"),
-    [("flow.mmd", "mermaid"), ("seq.puml", "plantuml")],
+    [("flow.mmd", "mermaid"), ("seq.puml", "plantuml"), ("box.excalidraw", "excalidraw")],
 )
 def test_render_endpoint_wraps_diagram_files(workspace: Path, name: str, kind: str) -> None:
     app = create_app(workspace)
@@ -178,6 +179,16 @@ def test_codedoc_build_conflicts_when_already_running(workspace: Path) -> None:
     with pytest.raises(HTTPException) as exc:
         _run(build(_request("POST", "/__api/codedoc/build", b"{}")))
     assert exc.value.status_code == 409
+
+
+def test_excalidraw_endpoint_renders_svg(workspace: Path) -> None:
+    app = create_app(workspace)
+    endpoint = _endpoint(app, "/__api/excalidraw")
+    ok = _run(endpoint(_request("POST", "/__api/excalidraw", b'{"type":"excalidraw","elements":[]}')))
+    assert ok.status_code == 200
+    assert b"<svg" in ok.body
+    bad = _run(endpoint(_request("POST", "/__api/excalidraw", b"not json")))
+    assert bad.status_code == 400
 
 
 def test_search_includes_diagram_files(workspace: Path) -> None:

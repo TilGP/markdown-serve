@@ -61,7 +61,7 @@ export function enhanceZoomables() {
     const tag = host.parentElement === content ? "div" : "span";
     wrapWithButton(host, tag, "zoomable-inline", () => img);
   }
-  for (const diagram of [...content.querySelectorAll(".diagram-mermaid, .diagram-plantuml")]) {
+  for (const diagram of [...content.querySelectorAll(".diagram-mermaid, .diagram-plantuml, .diagram-excalidraw")]) {
     if (diagram.closest(".zoomable")) continue;
     if (!diagram.querySelector(":scope > svg")) continue;
     wrapWithButton(diagram, "div", "zoomable-block", () => diagram.querySelector(":scope > svg"));
